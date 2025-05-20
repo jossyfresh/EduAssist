@@ -1,0 +1,14 @@
+{
+  "quiz": {
+    "prompt": "Generate a detailed quiz about {topic} with {difficulty} difficulty. Include multiple-choice questions, short answers, and explanations for each answer."
+  },
+  "flashcard": {
+    "prompt": "Create comprehensive flashcards for the topic: {topic}. Each flashcard should include a question on the front and a detailed answer on the back."
+  },
+  "note": {
+    "prompt": "Generate a detailed note with markup for the topic: {topic}. Include key points, definitions, and examples where applicable."
+  },
+  "youtube_suggestions": {
+    "prompt": "Suggest relevant YouTube videos for the topic: {topic}. Include titles, channel names, and brief descriptions of each video."
+  }
+} 

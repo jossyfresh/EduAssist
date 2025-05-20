@@ -1,43 +1,50 @@
-from typing import List, Union
+from typing import Any, Dict, List, Optional, Union
 import os
 from dotenv import load_dotenv
+from pydantic import BaseModel, validator
+import secrets
 
 # Load environment variables from .env file
 load_dotenv()
 
-class Settings:
+class Settings(BaseModel):
     # Application
-    PROJECT_NAME: str = "EduAssist"
-    VERSION: str = "0.1.0"
-    API_V1_STR: str = "/api/v1"
-    APP_ENV: str = os.getenv("APP_ENV", "development")
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    APP_ENV: str = "development"
+    DEBUG: bool = True
+    SECRET_KEY: str = secrets.token_urlsafe(32)
     PORT: int = int(os.getenv("PORT", "8000"))
+    API_V1_STR: str = "/api/v1"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
+    ALGORITHM: str = "HS256"
+    PROJECT_NAME: str = "EduAssist"
     
-    # Authentication
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
-    TESTING: bool = os.getenv("TESTING", "False").lower() == "true"
+    # Database Configuration (SQLite only)
+    SQLITE_URL: str = os.getenv("SQLITE_URL", "sqlite:///./eduassist.db")
+    SQLALCHEMY_DATABASE_URI: str = SQLITE_URL
     
-    # Supabase
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "https://jtqoyyjrkdxcvlbytblw.supabase.co")
-    SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY")
-    SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY")
+    # OpenAI Configuration
+    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY", None)
     
-    # OpenAI
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "your-openai-key-here")
+    # Google AI
+    GOOGLE_API_KEY: Optional[str] = os.getenv("GOOGLE_API_KEY", None)
     
-    # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/eduassist")
-    
-    # Storage
+    # Storage Configuration
     STORAGE_BUCKET: str = os.getenv("STORAGE_BUCKET", "eduassist-files")
     MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", "10485760"))  # 10MB in bytes
     
-    # CORS
-    BACKEND_CORS_ORIGINS: List[str] = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000").split(",")
-    
+    # CORS Configuration
+    BACKEND_CORS_ORIGINS: List[str] = []
+
+    @validator("BACKEND_CORS_ORIGINS", pre=True)
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, (list, str)):
+            return v
+        raise ValueError(v)
+
     class Config:
         case_sensitive = True
+        env_file = ".env"
 
 settings = Settings() 

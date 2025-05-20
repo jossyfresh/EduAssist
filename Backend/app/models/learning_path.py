@@ -1,18 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, UUID4, Field
-from enum import Enum
+from sqlalchemy import Column, String, Integer, ForeignKey, Text, DateTime
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
-class ContentType(str, Enum):
-    TEXT = "text"
-    VIDEO = "video"
-    QUIZ = "quiz"
-    EXERCISE = "exercise"
-
-class ProgressStatus(str, Enum):
-    NOT_STARTED = "not_started"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
+from app.db.base_class import Base
+from app.models.enums import ContentType, ProgressStatus
 
 class LearningPathBase(BaseModel):
     title: str
@@ -105,4 +99,17 @@ class UserProgressInDB(UserProgressBase):
     updated_at: datetime
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+class LearningPath(Base):
+    __tablename__ = "learning_paths"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True)
+    description = Column(Text)
+    created_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    steps = relationship("LearningPathStep", back_populates="learning_path", cascade="all, delete-orphan") 

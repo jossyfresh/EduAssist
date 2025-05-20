@@ -1,67 +1,369 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import List
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-from app.api import deps
-from app.crud import learning_path as crud
-from app.schemas.learning_path import LearningPath, LearningPathCreate, LearningPathUpdate
+from app.db.session import get_db
+from app.crud.crud_learning_path import (
+    crud_learning_path,
+    crud_learning_path_step,
+    crud_content_item,
+    crud_user_progress
+)
+from app.schemas.learning_path import (
+    LearningPathCreate,
+    LearningPathUpdate,
+    LearningPathInDB,
+    LearningPathStepCreate,
+    LearningPathStepInDB
+)
+from app.schemas.content import (
+    ContentItemCreate,
+    ContentItemInDB
+)
+from app.schemas.progress import (
+    UserProgressCreate,
+    UserProgressInDB
+)
+from app.core.security import get_current_user
 
 router = APIRouter()
 
-@router.post("/", response_model=LearningPath)
-def create_learning_path(
-    *,
-    db: Session = Depends(deps.get_db),
+@router.post("/", response_model=LearningPathInDB)
+async def create_learning_path(
     learning_path_in: LearningPathCreate,
-    current_user: dict = Depends(deps.get_current_user)
-):
-    return crud.create_learning_path(db=db, obj_in=learning_path_in, user_id=current_user["id"])
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> LearningPathInDB:
+    """Create a new learning path.
+    
+    Example request body:
+    {
+        "title": "Example Learning Path",
+        "description": "This is an example learning path.",
+        "is_public": true,
+        "difficulty_level": "Intermediate",
+        "estimated_duration": 120,
+        "tags": ["example", "learning"]
+    }
+    """
+    try:
+        created_path = crud_learning_path.create(db, obj_in=learning_path_in, created_by=UUID(current_user["id"]))
+        return created_path
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/", response_model=List[LearningPath])
-def read_learning_paths(
-    db: Session = Depends(deps.get_db),
-    current_user: dict = Depends(deps.get_current_user)
-):
-    return crud.get_user_learning_paths(db=db, user_id=current_user["id"])
+@router.get("/", response_model=List[LearningPathInDB])
+async def get_learning_paths(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> List[LearningPathInDB]:
+    """Get all learning paths.
+    
+    Example response:
+    [
+        {
+            "id": "uuid",
+            "title": "Example Learning Path",
+            "description": "This is an example learning path.",
+            "is_public": true,
+            "difficulty_level": "Intermediate",
+            "estimated_duration": 120,
+            "tags": ["example", "learning"],
+            "created_by": "uuid",
+            "created_at": "2023-01-01T00:00:00",
+            "updated_at": "2023-01-01T00:00:00"
+        }
+    ]
+    """
+    try:
+        paths = crud_learning_path.get_by_user(db, UUID(current_user["id"]))
+        return paths
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/{learning_path_id}", response_model=LearningPath)
-def read_learning_path(
-    learning_path_id: int,
-    db: Session = Depends(deps.get_db),
-    current_user: dict = Depends(deps.get_current_user)
-):
-    learning_path = crud.get_learning_path(db=db, id=learning_path_id)
-    if not learning_path:
-        raise HTTPException(status_code=404, detail="Learning path not found")
-    if learning_path.user_id != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    return learning_path
+@router.get("/my", response_model=List[LearningPathInDB])
+async def get_my_learning_paths(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> List[LearningPathInDB]:
+    """Get learning paths created by the current user.
+    
+    Example response:
+    [
+        {
+            "id": "uuid",
+            "title": "My Learning Path",
+            "description": "This is my learning path.",
+            "is_public": false,
+            "difficulty_level": "Beginner",
+            "estimated_duration": 60,
+            "tags": ["personal", "learning"],
+            "created_by": "uuid",
+            "created_at": "2023-01-01T00:00:00",
+            "updated_at": "2023-01-01T00:00:00"
+        }
+    ]
+    """
+    try:
+        paths = crud_learning_path.get_by_user(db, UUID(current_user["id"]))
+        return paths
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-@router.put("/{learning_path_id}", response_model=LearningPath)
-def update_learning_path(
-    *,
-    db: Session = Depends(deps.get_db),
-    learning_path_id: int,
+@router.get("/public", response_model=List[LearningPathInDB])
+async def get_public_learning_paths(
+    db: Session = Depends(get_db)
+) -> List[LearningPathInDB]:
+    """Get all public learning paths.
+    
+    Example response:
+    [
+        {
+            "id": "uuid",
+            "title": "Public Learning Path",
+            "description": "This is a public learning path.",
+            "is_public": true,
+            "difficulty_level": "Advanced",
+            "estimated_duration": 180,
+            "tags": ["public", "learning"],
+            "created_by": "uuid",
+            "created_at": "2023-01-01T00:00:00",
+            "updated_at": "2023-01-01T00:00:00"
+        }
+    ]
+    """
+    try:
+        paths = crud_learning_path.get_public(db)
+        return paths
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/{path_id}", response_model=LearningPathInDB)
+async def get_learning_path(
+    path_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> LearningPathInDB:
+    """Get a specific learning path by ID.
+    
+    Example response:
+    {
+        "id": "uuid",
+        "title": "Example Learning Path",
+        "description": "This is an example learning path.",
+        "is_public": true,
+        "difficulty_level": "Intermediate",
+        "estimated_duration": 120,
+        "tags": ["example", "learning"],
+        "created_by": "uuid",
+        "created_at": "2023-01-01T00:00:00",
+        "updated_at": "2023-01-01T00:00:00"
+    }
+    """
+    try:
+        path = crud_learning_path.get(db, path_id)
+        if not path:
+            raise HTTPException(status_code=404, detail="Learning path not found")
+        if not path.is_public and path.created_by != UUID(current_user["id"]):
+            raise HTTPException(status_code=403, detail="Not authorized to access this learning path")
+        return path
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/{path_id}", response_model=LearningPathInDB)
+async def update_learning_path(
+    path_id: UUID,
     learning_path_in: LearningPathUpdate,
-    current_user: dict = Depends(deps.get_current_user)
-):
-    learning_path = crud.get_learning_path(db=db, id=learning_path_id)
-    if not learning_path:
-        raise HTTPException(status_code=404, detail="Learning path not found")
-    if learning_path.user_id != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    return crud.update_learning_path(db=db, id=learning_path_id, obj_in=learning_path_in)
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> LearningPathInDB:
+    """Update a learning path.
+    
+    Example request body:
+    {
+        "title": "Updated Learning Path",
+        "description": "This is an updated learning path.",
+        "is_public": true,
+        "difficulty_level": "Advanced",
+        "estimated_duration": 150,
+        "tags": ["updated", "learning"]
+    }
+    """
+    try:
+        path = crud_learning_path.get(db, path_id)
+        if not path:
+            raise HTTPException(status_code=404, detail="Learning path not found")
+        if path.created_by != UUID(current_user["id"]):
+            raise HTTPException(status_code=403, detail="Not authorized to update this learning path")
+        updated_path = crud_learning_path.update(db, id=path_id, obj_in=learning_path_in)
+        if not updated_path:
+            raise HTTPException(status_code=404, detail="Learning path not found")
+        return updated_path
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-@router.delete("/{learning_path_id}", response_model=LearningPath)
-def delete_learning_path(
-    *,
-    db: Session = Depends(deps.get_db),
-    learning_path_id: int,
-    current_user: dict = Depends(deps.get_current_user)
+@router.delete("/{path_id}")
+async def delete_learning_path(
+    path_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    learning_path = crud.get_learning_path(db=db, id=learning_path_id)
-    if not learning_path:
-        raise HTTPException(status_code=404, detail="Learning path not found")
-    if learning_path.user_id != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    return crud.delete_learning_path(db=db, id=learning_path_id) 
+    """Delete a learning path.
+    
+    Example response:
+    {
+        "message": "Learning path deleted successfully"
+    }
+    """
+    try:
+        path = crud_learning_path.get(db, path_id)
+        if not path:
+            raise HTTPException(status_code=404, detail="Learning path not found")
+        if path.created_by != UUID(current_user["id"]):
+            raise HTTPException(status_code=403, detail="Not authorized to delete this learning path")
+        success = crud_learning_path.remove(db, id=path_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Learning path not found")
+        return {"message": "Learning path deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/{path_id}/steps", response_model=LearningPathStepInDB)
+async def create_learning_path_step(
+    path_id: UUID,
+    step_in: LearningPathStepCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> LearningPathStepInDB:
+    """Create a new step in a learning path.
+    
+    Example request body:
+    {
+        "title": "Example Step",
+        "description": "This is an example step.",
+        "content_type": "text",
+        "content": "This is the content of the step.",
+        "order": 1
+    }
+    """
+    try:
+        path = crud_learning_path.get(db, path_id)
+        if not path:
+            raise HTTPException(status_code=404, detail="Learning path not found")
+        if path.created_by != UUID(current_user["id"]):
+            raise HTTPException(status_code=403, detail="Not authorized to add steps to this learning path")
+        created_step = crud_learning_path_step.create(db, obj_in=step_in)
+        return created_step
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/{path_id}/steps", response_model=List[LearningPathStepInDB])
+async def get_learning_path_steps(
+    path_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> List[LearningPathStepInDB]:
+    """Get all steps in a learning path.
+    
+    Example response:
+    [
+        {
+            "id": 1,
+            "title": "Example Step",
+            "description": "This is an example step.",
+            "content_type": "text",
+            "content": "This is the content of the step.",
+            "order": 1,
+            "learning_path_id": "uuid",
+            "created_at": "2023-01-01T00:00:00",
+            "updated_at": "2023-01-01T00:00:00"
+        }
+    ]
+    """
+    try:
+        path = crud_learning_path.get(db, path_id)
+        if not path:
+            raise HTTPException(status_code=404, detail="Learning path not found")
+        if not path.is_public and path.created_by != UUID(current_user["id"]):
+            raise HTTPException(status_code=403, detail="Not authorized to view steps in this learning path")
+        steps = crud_learning_path_step.get_by_learning_path(db, path_id)
+        return steps
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/content", response_model=ContentItemInDB)
+async def create_content_item(
+    content_in: ContentItemCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> ContentItemInDB:
+    """Create a new content item.
+    
+    Example request body:
+    {
+        "title": "Example Content",
+        "description": "This is an example content item.",
+        "content_type": "text",
+        "content": "This is the content of the item."
+    }
+    """
+    try:
+        created_content = crud_content_item.create(db, obj_in=content_in, created_by=UUID(current_user["id"]))
+        return created_content
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/progress", response_model=UserProgressInDB)
+async def create_user_progress(
+    progress_in: UserProgressCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> UserProgressInDB:
+    """Create or update user progress.
+    
+    Example request body:
+    {
+        "user_id": "uuid",
+        "learning_path_id": "uuid",
+        "step_id": 1,
+        "status": "completed",
+        "score": 100
+    }
+    """
+    try:
+        if progress_in.user_id != UUID(current_user["id"]):
+            raise HTTPException(status_code=403, detail="Not authorized to create progress for another user")
+        created_progress = crud_user_progress.create(db, obj_in=progress_in)
+        return created_progress
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/progress/{path_id}", response_model=List[UserProgressInDB])
+async def get_user_progress(
+    path_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> List[UserProgressInDB]:
+    """Get user progress for a specific learning path.
+    
+    Example response:
+    [
+        {
+            "id": 1,
+            "user_id": "uuid",
+            "learning_path_id": "uuid",
+            "step_id": 1,
+            "status": "completed",
+            "score": 100,
+            "created_at": "2023-01-01T00:00:00",
+            "updated_at": "2023-01-01T00:00:00"
+        }
+    ]
+    """
+    try:
+        progress = crud_user_progress.get_by_user_and_path(db, UUID(current_user["id"]), path_id)
+        return progress
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) 
