@@ -50,10 +50,13 @@ class UserInDBBase(UserBase):
     updated_at: Optional[datetime] = None
 
     class Config:
+        orm_mode = True
         from_attributes = True
 
 class User(UserInDBBase):
-    pass
+    class Config:
+        orm_mode = True
+        from_attributes = True
 
 class UserInDB(UserInDBBase):
     hashed_password: str 

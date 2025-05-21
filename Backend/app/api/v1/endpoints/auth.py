@@ -5,9 +5,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 
-from app.core import security
+from app.core.security import create_access_token, get_password_hash
 from app.core.config import settings
-from app.core.security import get_password_hash
 from app.api import deps
 from app.schemas.user import User, UserCreate, Token
 from app.crud import crud_user
@@ -69,7 +68,7 @@ def login(
     
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return {
-        "access_token": security.create_access_token(
+        "access_token": create_access_token(
             user.email, expires_delta=access_token_expires
         ),
         "token_type": "bearer",
@@ -138,7 +137,7 @@ def register(
     # Generate access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return {
-        "access_token": security.create_access_token(
+        "access_token": create_access_token(
             user.email, expires_delta=access_token_expires
         ),
         "token_type": "bearer",

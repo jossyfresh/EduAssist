@@ -27,7 +27,7 @@ from app.schemas.progress import (
     UserProgressCreate,
     UserProgressInDB
 )
-from app.core.security import get_current_user
+from app.api import deps
 
 router = APIRouter()
 
@@ -38,7 +38,7 @@ router = APIRouter()
 })
 async def create_learning_path(
     learning_path_in: LearningPathCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> LearningPathInDB:
     """Create a new learning path.
@@ -64,7 +64,7 @@ async def create_learning_path(
     401: {"description": "Not authenticated"}
 })
 async def get_learning_paths(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> List[LearningPathInDB]:
     """Get all learning paths.
@@ -96,7 +96,7 @@ async def get_learning_paths(
     401: {"description": "Not authenticated"}
 })
 async def get_my_learning_paths(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> List[LearningPathInDB]:
     """Get learning paths created by the current user.
@@ -161,7 +161,7 @@ async def get_public_learning_paths(
 })
 async def get_learning_path(
     path_id: UUID,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> LearningPathInDB:
     """Get a specific learning path by ID.
@@ -199,7 +199,7 @@ async def get_learning_path(
 async def update_learning_path(
     path_id: UUID,
     learning_path_in: LearningPathUpdate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> LearningPathInDB:
     """Update a learning path.
@@ -233,7 +233,7 @@ async def update_learning_path(
 })
 async def delete_learning_path(
     path_id: UUID,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Delete a learning path.
@@ -263,7 +263,7 @@ async def delete_learning_path(
 async def create_learning_path_step(
     path_id: UUID,
     step_in: LearningPathStepCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> LearningPathStepInDB:
     """Create a new step in a learning path.
@@ -296,7 +296,7 @@ async def create_learning_path_step(
 })
 async def get_learning_path_steps(
     path_id: UUID,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> List[LearningPathStepInDB]:
     """Get all steps in a learning path.
@@ -330,7 +330,7 @@ async def get_learning_path_steps(
 @router.post("/content", response_model=ContentItemInDB)
 async def create_content_item(
     content_in: ContentItemCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> ContentItemInDB:
     """Create a new content item.
@@ -352,7 +352,7 @@ async def create_content_item(
 @router.post("/progress", response_model=UserProgressInDB)
 async def create_user_progress(
     progress_in: UserProgressCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> UserProgressInDB:
     """Create or update user progress.
@@ -377,7 +377,7 @@ async def create_user_progress(
 @router.get("/progress/{path_id}", response_model=List[UserProgressInDB])
 async def get_user_progress(
     path_id: UUID,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> List[UserProgressInDB]:
     """Get user progress for a specific learning path.
