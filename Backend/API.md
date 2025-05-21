@@ -102,39 +102,169 @@
 
 ### Create Text Content
 
-- **POST** `/content/text`
+- **URL**: `/content/text`
+- **Method**: `POST`
+- **Auth Required**: Yes
+- **Request Body**:
+  ```json
+  {
+    "title": "string",
+    "content_type": "text",
+    "content": "string",
+    "meta": {},
+    "description": "string (optional)"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "id": "string",
+    "title": "string",
+    "content_type": "text",
+    "content": "string",
+    "meta": {},
+    "description": "string",
+    "created_by": "string",
+    "created_at": "datetime",
+    "updated_at": "datetime"
+  }
+  ```
+- **Error Responses**:
+  - `401 Unauthorized`: Not authenticated
+  - `400 Bad Request`: Invalid input data
 
 ### Create Video Content
 
-- **POST** `/content/video`
+- **URL**: `/content/video`
+- **Method**: `POST`
+- **Auth Required**: Yes
+- **Request Body**:
+  ```json
+  {
+    "video_url": "string"
+  }
+  ```
+- **Response**: Same as Create Text Content
+- **Error Responses**:
+  - `401 Unauthorized`: Not authenticated
+  - `400 Bad Request`: Invalid input data
 
 ### Upload File
 
-- **POST** `/content/upload`
+- **URL**: `/content/upload`
+- **Method**: `POST`
+- **Auth Required**: Yes
+- **Request Body**: `multipart/form-data`
+  - `file`: File to upload
+- **Response**: Same as Create Text Content
+- **Error Responses**:
+  - `401 Unauthorized`: Not authenticated
+  - `400 Bad Request`: Invalid file
+  - `413 Payload Too Large`: File too large
+  - `500 Internal Server Error`: Upload failed
 
 ### Get Content by ID
 
-- **GET** `/content/{content_id}`
+- **URL**: `/content/{content_id}`
+- **Method**: `GET`
+- **Auth Required**: Yes
+- **Response**: Same as Create Text Content
+- **Error Responses**:
+  - `401 Unauthorized`: Not authenticated
+  - `404 Not Found`: Content not found
 
 ### Update Content
 
-- **PUT** `/content/{content_id}`
+- **URL**: `/content/{content_id}`
+- **Method**: `PUT`
+- **Auth Required**: Yes
+- **Request Body**:
+  ```json
+  {
+    "title": "string (optional)",
+    "content_type": "string (optional)",
+    "content": "string (optional)",
+    "meta": {} (optional),
+    "description": "string (optional)"
+  }
+  ```
+- **Response**: Same as Create Text Content
+- **Error Responses**:
+  - `401 Unauthorized`: Not authenticated
+  - `403 Forbidden`: Not authorized to update this content
+  - `404 Not Found`: Content not found
 
 ### Delete Content
 
-- **DELETE** `/content/{content_id}`
+- **URL**: `/content/{content_id}`
+- **Method**: `DELETE`
+- **Auth Required**: Yes
+- **Response**: Same as Create Text Content
+- **Error Responses**:
+  - `401 Unauthorized`: Not authenticated
+  - `404 Not Found`: Content not found
 
 ### Generate Content (AI)
 
-- **POST** `/content/generate`
+- **URL**: `/content/generate`
+- **Method**: `POST`
+- **Auth Required**: Yes
+- **Request Body**:
+  ```json
+  {
+    "content_type": "string",
+    "parameters": {},
+    "provider": "string (default: openai)"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "content": "string"
+  }
+  ```
+- **Error Responses**:
+  - `401 Unauthorized`: Not authenticated
+  - `400 Bad Request`: Invalid input data
+  - `500 Internal Server Error`: Generation failed
 
 ### Get YouTube Metadata
 
-- **GET** `/content/youtube-metadata?video_url=...`
+- **URL**: `/content/youtube-metadata`
+- **Method**: `GET`
+- **Auth Required**: No
+- **Query Parameters**:
+  - `video_url`: YouTube video URL
+- **Response**:
+  ```json
+  {
+    "title": "string",
+    "video_url": "string",
+    "duration": "integer",
+    "description": "string"
+  }
+  ```
+- **Error Responses**:
+  - `400 Bad Request`: Invalid video URL
 
 ### Get Combined Content
 
-- **GET** `/content/combined`
+- **URL**: `/content/combined`
+- **Method**: `GET`
+- **Auth Required**: Yes
+- **Response**:
+  ```json
+  {
+    "items": [
+      {
+        "id": "string",
+        "title": "string"
+      }
+    ]
+  }
+  ```
+- **Error Responses**:
+  - `401 Unauthorized`: Not authenticated
 
 ## Learning Path Endpoints
 
