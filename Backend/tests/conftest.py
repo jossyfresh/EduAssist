@@ -9,17 +9,21 @@ from app.core.security import create_access_token
 from app.models.learning_path import (
     LearningPathCreate,
     LearningPathStepCreate,
-    ContentItemCreate,
     UserProgressCreate,
-    ContentType,
     ProgressStatus
 )
+from app.schemas.content import ContentCreate
+from app.models.enums import ContentType
+from app.db.session import SessionLocal
+from app.crud.crud_user import crud_user
+from app.schemas.user import UserCreate
 
 # Set test environment variables
 os.environ["TESTING"] = "True"
 os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 os.environ["SECRET_KEY"] = "test-secret-key"
 os.environ["OPENAI_API_KEY"] = "test-openai-key"
+os.environ["GEMINI_API_KEY"] = "test-gemini-key"
 
 @pytest.fixture(scope="module")
 def client() -> TestClient:
@@ -50,16 +54,25 @@ def setup_test_environment():
 
 @pytest.fixture(scope="session")
 def test_user():
-    # Create a test user using SQLAlchemy
+    db = SessionLocal()
+    user_in = UserCreate(
+        email="test@example.com",
+        username="testuser",
+        password="testpassword",
+        full_name="Test User",
+        is_active=True,
+        is_superuser=False
+    )
+    user = crud_user.get_by_email(db, email=user_in.email)
+    if not user:
+        user = crud_user.create(db, obj_in=user_in)
+    db.close()
     user_data = {
-        "id": "f53783aa-84ea-4bc0-99e7-b59b9a184396",
-        "email": "test@example.com",
-        "created_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat()
+        "id": user.email,  # use email as id for token
+        "email": user.email,
+        "created_at": user.created_at.isoformat(),
+        "updated_at": user.updated_at.isoformat() if user.updated_at else None
     }
-    
-    # Use SQLAlchemy to create the user
-    # For now, just return the user data
     return user_data
 
 @pytest.fixture
@@ -86,7 +99,7 @@ def test_learning_path_step_data():
 
 @pytest.fixture
 def test_content_item_data():
-    return ContentItemCreate(
+    return ContentCreate(
         content_type=ContentType.TEXT,
         title="Test Content",
         content="Test content text",
@@ -109,7 +122,7 @@ def test_user_id():
 @pytest.fixture
 def test_token(test_user):
     """Create a test JWT token."""
-    return create_access_token(data={"sub": test_user["id"]})
+    return create_access_token(subject=test_user["id"])
 
 @pytest.fixture
 def test_headers(test_token):
@@ -118,19 +131,21 @@ def test_headers(test_token):
 
 @pytest.fixture(scope="session")
 def test_api_user():
-    # Create a test user using SQLAlchemy for API tests
     user_data = {
-        "id": "bd56ad3b-d644-4cab-8e9c-6113ca46f4ec",
+        "id": "testapi@example.com",  # use email as id
         "email": "testapi@example.com",
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat()
     }
-    
-    # Use SQLAlchemy to create the user
-    # For now, just return the user data
-    
-    # Create access token
-    access_token = create_access_token({"sub": user_data["id"]})
+    access_token = create_access_token(subject=user_data["id"])
     user_data["access_token"] = access_token
-    
-    return user_data 
+    return user_data
+
+@pytest.fixture(scope="function")
+def db():
+    """Create a fresh database session for a test."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close() 

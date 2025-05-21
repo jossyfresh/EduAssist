@@ -69,15 +69,6 @@ class ContentItemUpdate(ContentItemBase):
     content: Optional[str] = None
     metadata: Optional[dict] = None
 
-class ContentItemInDB(ContentItemBase):
-    id: UUID4
-    created_by: UUID4
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
 class UserProgressBase(BaseModel):
     status: ProgressStatus
     started_at: Optional[datetime] = None

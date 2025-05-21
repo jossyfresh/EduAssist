@@ -2,7 +2,7 @@ import pytest
 from uuid import UUID, uuid4
 from datetime import datetime
 from sqlalchemy.orm import Session
-from app.crud.crud_learning_path import crud_learning_path, crud_learning_path_step, crud_content_item, crud_user_progress
+from app.crud.crud_learning_path import crud_learning_path, crud_learning_path_step, crud_user_progress
 from app.models.learning_path import (
     LearningPathCreate,
     LearningPathUpdate,
@@ -14,6 +14,7 @@ from app.models.learning_path import (
     ContentType,
     ProgressStatus
 )
+from app.schemas.content import ContentCreate
 
 @pytest.fixture
 def test_user_id():
@@ -44,11 +45,11 @@ def test_learning_path_step_data(test_user_id):
 
 @pytest.fixture
 def test_content_item_data(test_user_id):
-    return ContentItemCreate(
+    return ContentCreate(
         content_type=ContentType.TEXT,
         title="Test Content",
         content="Test content text",
-        metadata={"key": "value"},
+        meta={"key": "value"},
         created_by=test_user_id
     )
 

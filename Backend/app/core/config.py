@@ -11,6 +11,7 @@ class Settings(BaseModel):
     # Application
     APP_ENV: str = "development"
     DEBUG: bool = True
+    TESTING: bool = False
     SECRET_KEY: str = secrets.token_urlsafe(32)
     PORT: int = int(os.getenv("PORT", "8000"))
     API_V1_STR: str = "/api/v1"
@@ -27,6 +28,7 @@ class Settings(BaseModel):
     
     # Google AI
     GOOGLE_API_KEY: Optional[str] = os.getenv("GOOGLE_API_KEY", None)
+    GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY", None)
     
     # Storage Configuration
     STORAGE_BUCKET: str = os.getenv("STORAGE_BUCKET", "eduassist-files")

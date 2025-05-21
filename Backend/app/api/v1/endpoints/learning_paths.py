@@ -8,7 +8,6 @@ from app.db.session import get_db
 from app.crud.crud_learning_path import (
     crud_learning_path,
     crud_learning_path_step,
-    crud_content_item,
     crud_user_progress
 )
 from app.schemas.learning_path import (
@@ -20,8 +19,8 @@ from app.schemas.learning_path import (
     LearningPathStepUpdate
 )
 from app.schemas.content import (
-    ContentItemCreate,
-    ContentItemInDB
+    ContentCreate,
+    Content
 )
 from app.schemas.progress import (
     UserProgressCreate,
@@ -327,12 +326,12 @@ async def get_learning_path_steps(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/content", response_model=ContentItemInDB)
+@router.post("/content", response_model=Content)
 async def create_content_item(
-    content_in: ContentItemCreate,
+    content_in: ContentCreate,
     current_user: dict = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
-) -> ContentItemInDB:
+) -> Content:
     """Create a new content item.
     
     Example request body:
@@ -344,7 +343,7 @@ async def create_content_item(
     }
     """
     try:
-        created_content = crud_content_item.create(db, obj_in=content_in, created_by=UUID(current_user["id"]))
+        created_content = crud_content.create(db, obj_in=content_in, created_by=UUID(current_user["id"]))
         return created_content
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

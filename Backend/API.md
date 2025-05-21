@@ -273,16 +273,17 @@
       "prompt": "string",
       "max_tokens": "integer"
     },
-    "provider": "string"
+    "provider": "string (optional, default: openai)"
   }
   ```
 - **Example Request**:
   ```json
   {
-    "content_type": "text",
+    "content_type": "quiz",
     "parameters": {
-      "prompt": "Explain quantum computing in simple terms",
-      "max_tokens": 500
+      "topic": "Python Programming",
+      "difficulty": "beginner",
+      "num_questions": 3
     },
     "provider": "openai"
   }
@@ -290,7 +291,7 @@
 - **Response**:
   ```json
   {
-    "content": "Quantum computing is a type of computing that uses quantum bits..."
+    "content": "...AI generated content..."
   }
   ```
 

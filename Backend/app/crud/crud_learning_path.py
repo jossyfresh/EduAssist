@@ -14,11 +14,7 @@ from app.schemas.learning_path import (
     LearningPathStepUpdate,
     LearningPathStepInDB
 )
-from app.schemas.content import (
-    ContentItemCreate,
-    ContentItemUpdate,
-    ContentItemInDB
-)
+from app.schemas.content import Content, ContentCreate, ContentUpdate
 from app.schemas.progress import (
     UserProgressCreate,
     UserProgressUpdate,
@@ -100,11 +96,6 @@ class CRUDLearningPathStep(CRUDBase[LearningPathStep, LearningPathStepCreate, Le
             .all()
         )
 
-class CRUDContentItem(CRUDBase[ContentItemInDB, ContentItemCreate, ContentItemUpdate]):
-    def get_by_type(self, db: Session, content_type: ContentType) -> List[ContentItemInDB]:
-        """Get all content items of a specific type."""
-        return db.query(self.model).filter(self.model.content_type == content_type).all()
-
 class CRUDUserProgress(CRUDBase[UserProgressInDB, UserProgressCreate, UserProgressUpdate]):
     def get_by_learning_path(self, db: Session, user_id: int, learning_path_id: int) -> List[UserProgressInDB]:
         """Get all progress entries for a user in a learning path."""
@@ -125,5 +116,4 @@ class CRUDUserProgress(CRUDBase[UserProgressInDB, UserProgressCreate, UserProgre
 # Create instances of the CRUD classes
 crud_learning_path = CRUDLearningPath(LearningPath)
 crud_learning_path_step = CRUDLearningPathStep(LearningPathStep)
-crud_content_item = CRUDContentItem(ContentItemInDB)
 crud_user_progress = CRUDUserProgress(UserProgressInDB) 
