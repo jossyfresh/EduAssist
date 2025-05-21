@@ -3,6 +3,23 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from app.main import app
 from app.services.content_generator import ContentGenerator
+from unittest.mock import AsyncMock
+import json
+
+@pytest.fixture(autouse=True)
+def mock_content_generator(monkeypatch):
+    async def mock_generate_content(self, content_type, parameters, provider="openai"):
+        if content_type == "quiz":
+            return {"title": "Quiz Title", "content": json.dumps({"questions": [{"question": "Q1", "options": ["A", "B", "C"], "correct_answer": "A"}]}), "meta": {}}
+        elif content_type == "summary":
+            return {"title": "Summary Title", "content": "This is a summary.", "meta": {}}
+        elif content_type == "flashcard":
+            return {"title": "Flashcards", "content": json.dumps([{"front": "Q1", "back": "A1"}]), "meta": {}}
+        elif content_type == "youtube_suggestions":
+            return {"title": "YouTube Suggestions", "content": json.dumps([{"title": "Video1", "url": "http://youtube.com/1"}]), "meta": {}}
+        else:
+            raise ValueError(f"Unsupported content type: {content_type}")
+    monkeypatch.setattr(ContentGenerator, "generate_content", mock_generate_content)
 
 @pytest.mark.usefixtures("client", "test_headers")
 def test_generate_quiz(client, test_headers):
@@ -21,10 +38,8 @@ def test_generate_quiz(client, test_headers):
     )
     assert response.status_code == 200
     data = response.json()
-    assert "content" in data
-    assert isinstance(data["content"], dict)
-    assert "questions" in data["content"]
-    assert len(data["content"]["questions"]) > 0
+    questions = json.loads(data["content"])["questions"]
+    assert len(questions) > 0
 
 @pytest.mark.usefixtures("client", "test_headers")
 def test_generate_quiz_with_gemini(client, test_headers):
@@ -43,10 +58,8 @@ def test_generate_quiz_with_gemini(client, test_headers):
     )
     assert response.status_code == 200
     data = response.json()
-    assert "content" in data
-    assert isinstance(data["content"], dict)
-    assert "questions" in data["content"]
-    assert len(data["content"]["questions"]) > 0
+    questions = json.loads(data["content"])["questions"]
+    assert len(questions) > 0
 
 @pytest.mark.usefixtures("client", "test_headers")
 def test_generate_summary(client, test_headers):
@@ -70,7 +83,6 @@ def test_generate_summary(client, test_headers):
     )
     assert response.status_code == 200
     data = response.json()
-    assert "content" in data
     assert isinstance(data["content"], str)
     assert len(data["content"]) > 0
 
@@ -96,7 +108,6 @@ def test_generate_summary_with_gemini(client, test_headers):
     )
     assert response.status_code == 200
     data = response.json()
-    assert "content" in data
     assert isinstance(data["content"], str)
     assert len(data["content"]) > 0
 
@@ -116,10 +127,9 @@ def test_generate_flashcards(client, test_headers):
     )
     assert response.status_code == 200
     data = response.json()
-    assert "content" in data
-    assert isinstance(data["content"], list)
+    assert isinstance(data["content"], str)
     assert len(data["content"]) > 0
-    assert all("front" in card and "back" in card for card in data["content"])
+    assert all("front" in card and "back" in card for card in json.loads(data["content"]))
 
 @pytest.mark.usefixtures("client", "test_headers")
 def test_generate_flashcards_with_gemini(client, test_headers):
@@ -137,10 +147,9 @@ def test_generate_flashcards_with_gemini(client, test_headers):
     )
     assert response.status_code == 200
     data = response.json()
-    assert "content" in data
-    assert isinstance(data["content"], list)
+    assert isinstance(data["content"], str)
     assert len(data["content"]) > 0
-    assert all("front" in card and "back" in card for card in data["content"])
+    assert all("front" in card and "back" in card for card in json.loads(data["content"]))
 
 @pytest.mark.usefixtures("client", "test_headers")
 def test_generate_youtube_suggestions(client, test_headers):
@@ -158,10 +167,9 @@ def test_generate_youtube_suggestions(client, test_headers):
     )
     assert response.status_code == 200
     data = response.json()
-    assert "content" in data
-    assert isinstance(data["content"], list)
+    assert isinstance(data["content"], str)
     assert len(data["content"]) > 0
-    assert all("title" in video and "url" in video for video in data["content"])
+    assert all("title" in video and "url" in video for video in json.loads(data["content"]))
 
 @pytest.mark.usefixtures("client", "test_headers")
 def test_generate_youtube_suggestions_with_gemini(client, test_headers):
@@ -179,10 +187,9 @@ def test_generate_youtube_suggestions_with_gemini(client, test_headers):
     )
     assert response.status_code == 200
     data = response.json()
-    assert "content" in data
-    assert isinstance(data["content"], list)
+    assert isinstance(data["content"], str)
     assert len(data["content"]) > 0
-    assert all("title" in video and "url" in video for video in data["content"])
+    assert all("title" in video and "url" in video for video in json.loads(data["content"]))
 
 @pytest.mark.usefixtures("client", "test_headers")
 def test_invalid_provider(client, test_headers):

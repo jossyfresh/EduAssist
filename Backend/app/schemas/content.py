@@ -1,5 +1,5 @@
 from typing import Optional, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from app.models.enums import ContentType
 
@@ -7,24 +7,32 @@ class ContentBase(BaseModel):
     title: str
     content_type: ContentType
     content: str
-    meta: Optional[Dict[str, Any]] = {}
+    meta: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    description: Optional[str] = None
 
 class ContentCreate(ContentBase):
     pass
 
 class ContentUpdate(BaseModel):
     title: Optional[str] = None
+    content_type: Optional[ContentType] = None
     content: Optional[str] = None
     meta: Optional[Dict[str, Any]] = None
+    description: Optional[str] = None
 
-class Content(ContentBase):
+class Content(BaseModel):
     id: str
+    title: str
+    content_type: ContentType
+    content: str
+    meta: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    description: Optional[str] = None
     created_by: str
     created_at: datetime
     updated_at: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class GenerateContentRequest(BaseModel):
     content_type: str

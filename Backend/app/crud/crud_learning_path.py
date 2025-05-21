@@ -23,25 +23,27 @@ from app.schemas.progress import (
 
 class CRUDLearningPath(CRUDBase[LearningPath, LearningPathCreate, LearningPathUpdate]):
     def create_with_steps(
-        self, db: Session, *, obj_in: LearningPathCreate, created_by: int
+        self, db: Session, *, obj_in: LearningPathCreate, created_by: str
     ) -> LearningPath:
         obj_in_data = obj_in.dict()
-        steps = obj_in_data.pop("steps")
-        db_obj = LearningPath(**obj_in_data, created_by=created_by)
+        steps = obj_in_data.pop("steps", [])
+        db_obj = LearningPath(**obj_in_data, created_by=str(created_by))
         db.add(db_obj)
         db.flush()  # Flush to get the ID
 
-        # Create steps
+        # Create steps if provided
         for step_data in steps:
-            step = LearningPathStep(**step_data.dict(), learning_path_id=db_obj.id)
-            db.add(step)
+            step_dict = step_data.dict()
+            step_dict["learning_path_id"] = db_obj.id
+            step_dict["order"] = step_dict.pop("order", 1)
+            db.add(LearningPathStep(**step_dict))
 
         db.commit()
         db.refresh(db_obj)
         return db_obj
 
     def get_multi_by_creator(
-        self, db: Session, *, creator_id: int, skip: int = 0, limit: int = 100
+        self, db: Session, *, creator_id: str, skip: int = 0, limit: int = 100
     ) -> List[LearningPath]:
         return (
             db.query(self.model)
@@ -78,7 +80,7 @@ class CRUDLearningPath(CRUDBase[LearningPath, LearningPathCreate, LearningPathUp
         db.refresh(db_obj)
         return db_obj
 
-    def get_by_user(self, db: Session, user_id: int) -> List[LearningPath]:
+    def get_by_user(self, db: Session, user_id: str) -> List[LearningPath]:
         """Get all learning paths created by a user."""
         return db.query(self.model).filter(LearningPath.created_by == user_id).all()
 
@@ -87,12 +89,12 @@ class CRUDLearningPath(CRUDBase[LearningPath, LearningPathCreate, LearningPathUp
         return db.query(self.model).filter(LearningPath.is_public == True).all()
 
 class CRUDLearningPathStep(CRUDBase[LearningPathStep, LearningPathStepCreate, LearningPathStepUpdate]):
-    def get_by_learning_path(self, db: Session, learning_path_id: int) -> List[LearningPathStep]:
+    def get_by_learning_path(self, db: Session, learning_path_id: str) -> List[LearningPathStep]:
         """Get all steps for a learning path."""
         return (
             db.query(self.model)
             .filter(LearningPathStep.learning_path_id == learning_path_id)
-            .order_by(LearningPathStep.step_order)
+            .order_by(LearningPathStep.order)
             .all()
         )
 

@@ -5,6 +5,7 @@ class ContentType(str, Enum):
     VIDEO = "video"
     QUIZ = "quiz"
     EXERCISE = "exercise"
+    FILE = "file"
 
 class ProgressStatus(str, Enum):
     NOT_STARTED = "not_started"

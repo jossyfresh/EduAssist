@@ -22,6 +22,7 @@ class Settings(BaseModel):
     # Database Configuration (SQLite only)
     SQLITE_URL: str = os.getenv("SQLITE_URL", "sqlite:///./eduassist.db")
     SQLALCHEMY_DATABASE_URI: str = SQLITE_URL
+    DATABASE_URL: str = SQLITE_URL
     
     # OpenAI Configuration
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY", None)

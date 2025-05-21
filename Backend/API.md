@@ -4,7 +4,7 @@
 
 ### Register User
 
-- **URL**: `/api/v1/auth/register`
+- **URL**: `/auth/register`
 - **Method**: `POST`
 - **Request Body**:
   ```json
@@ -41,7 +41,7 @@
 
 ### Login
 
-- **URL**: `/api/v1/auth/login`
+- **URL**: `/auth/login`
 - **Method**: `POST`
 - **Request Body**:
   ```json
@@ -68,275 +68,210 @@
   - `401 Unauthorized`: Incorrect email or password
   - `400 Bad Request`: Inactive user
 
-## Content Management Endpoints
+## User Endpoints
 
-### Upload File
+- **Base Path**: `/users`
 
-- **URL**: `/api/v1/content/upload`
-- **Method**: `POST`
-- **Headers**:
-  - `Authorization`: Bearer {token}
-- **Request Body**:
-  - `file`: File (multipart/form-data)
-- **Example Request**:
+### List Users (Superuser only)
 
-  ```
-  Content-Type: multipart/form-data
-  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+- **GET** `/users/`
 
-  file: [PDF/Image/Video file]
-  ```
+### Create User (Superuser only)
 
-- **Response**:
-  ```json
-  {
-    "id": 1,
-    "title": "uploaded_file.pdf",
-    "description": "Uploaded file description",
-    "content_type": "pdf",
-    "content": "file_url_or_content",
-    "created_by": "user@example.com",
-    "created_at": "2024-03-20T10:00:00Z",
-    "updated_at": "2024-03-20T10:00:00Z"
-  }
-  ```
+- **POST** `/users/`
+
+### Get Current User
+
+- **GET** `/users/me`
+
+### Update Current User
+
+- **PUT** `/users/me`
+
+### Get User by ID
+
+- **GET** `/users/{user_id}`
+
+### Delete User by ID (Superuser only)
+
+- **DELETE** `/users/{user_id}`
+
+## Content Endpoints
+
+- **Base Path**: `/content`
 
 ### Create Text Content
 
-- **URL**: `/api/v1/content/text`
-- **Method**: `POST`
-- **Headers**:
-  - `Authorization`: Bearer {token}
-- **Request Body**:
-  ```json
-  {
-    "title": "string",
-    "description": "string",
-    "content_type": "text",
-    "content": "string"
-  }
-  ```
-- **Example Request**:
-  ```json
-  {
-    "title": "Introduction to Python",
-    "description": "A beginner's guide to Python programming",
-    "content_type": "text",
-    "content": "Python is a high-level programming language..."
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "id": 1,
-    "title": "Introduction to Python",
-    "description": "A beginner's guide to Python programming",
-    "content_type": "text",
-    "content": "Python is a high-level programming language...",
-    "created_by": "user@example.com",
-    "created_at": "2024-03-20T10:00:00Z",
-    "updated_at": "2024-03-20T10:00:00Z"
-  }
-  ```
+- **POST** `/content/text`
 
 ### Create Video Content
 
-- **URL**: `/api/v1/content/video`
-- **Method**: `POST`
-- **Headers**:
-  - `Authorization`: Bearer {token}
-- **Request Body**:
-  ```json
-  {
-    "video_url": "string"
-  }
-  ```
-- **Example Request**:
-  ```json
-  {
-    "video_url": "https://example.com/video.mp4"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "id": 1,
-    "title": "Video Title",
-    "description": "Video Description",
-    "content_type": "video",
-    "content": "https://example.com/video.mp4",
-    "created_by": "user@example.com",
-    "created_at": "2024-03-20T10:00:00Z",
-    "updated_at": "2024-03-20T10:00:00Z"
-  }
-  ```
+- **POST** `/content/video`
 
-### Get Content
+### Upload File
 
-- **URL**: `/api/v1/content/{content_id}`
-- **Method**: `GET`
-- **Headers**:
-  - `Authorization`: Bearer {token}
-- **Example Request**:
-  ```
-  GET /api/v1/content/1
-  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-  ```
-- **Response**:
-  ```json
-  {
-    "id": 1,
-    "title": "Content Title",
-    "description": "Content Description",
-    "content_type": "text",
-    "content": "Content body...",
-    "created_by": "user@example.com",
-    "created_at": "2024-03-20T10:00:00Z",
-    "updated_at": "2024-03-20T10:00:00Z"
-  }
-  ```
+- **POST** `/content/upload`
+
+### Get Content by ID
+
+- **GET** `/content/{content_id}`
 
 ### Update Content
 
-- **URL**: `/api/v1/content/{content_id}`
-- **Method**: `PUT`
-- **Headers**:
-  - `Authorization`: Bearer {token}
-- **Request Body**:
-  ```json
-  {
-    "title": "string",
-    "description": "string",
-    "content_type": "string",
-    "content": "string"
-  }
-  ```
-- **Example Request**:
-  ```json
-  {
-    "title": "Updated Title",
-    "description": "Updated Description",
-    "content_type": "text",
-    "content": "Updated content..."
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "id": 1,
-    "title": "Updated Title",
-    "description": "Updated Description",
-    "content_type": "text",
-    "content": "Updated content...",
-    "created_by": "user@example.com",
-    "created_at": "2024-03-20T10:00:00Z",
-    "updated_at": "2024-03-20T11:00:00Z"
-  }
-  ```
+- **PUT** `/content/{content_id}`
 
 ### Delete Content
 
-- **URL**: `/api/v1/content/{content_id}`
-- **Method**: `DELETE`
-- **Headers**:
-  - `Authorization`: Bearer {token}
-- **Example Request**:
-  ```
-  DELETE /api/v1/content/1
-  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-  ```
-- **Response**:
-  ```json
-  {
-    "id": 1,
-    "title": "Deleted Content",
-    "description": "Content Description",
-    "content_type": "text",
-    "content": "Content body...",
-    "created_by": "user@example.com",
-    "created_at": "2024-03-20T10:00:00Z",
-    "updated_at": "2024-03-20T10:00:00Z"
-  }
-  ```
+- **DELETE** `/content/{content_id}`
 
-### Generate Content
+### Generate Content (AI)
 
-- **URL**: `/api/v1/content/generate`
-- **Method**: `POST`
-- **Headers**:
-  - `Authorization`: Bearer {token}
-- **Request Body**:
-  ```json
-  {
-    "content_type": "string",
-    "parameters": {
-      "prompt": "string",
-      "max_tokens": "integer"
-    },
-    "provider": "string (optional, default: openai)"
-  }
-  ```
-- **Example Request**:
-  ```json
-  {
-    "content_type": "quiz",
-    "parameters": {
-      "topic": "Python Programming",
-      "difficulty": "beginner",
-      "num_questions": 3
-    },
-    "provider": "openai"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "content": "...AI generated content..."
-  }
-  ```
+- **POST** `/content/generate`
+
+### Get YouTube Metadata
+
+- **GET** `/content/youtube-metadata?video_url=...`
+
+### Get Combined Content
+
+- **GET** `/content/combined`
 
 ## Learning Path Endpoints
 
+- **Base Path**: `/learning-paths`
+
 ### Create Learning Path
 
-- **URL**: `/api/v1/learning-paths`
-- **Method**: `POST`
-- **Headers**:
-  - `Authorization`: Bearer {token}
-- **Request Body**:
-  ```json
-  {
-    "title": "string",
-    "description": "string",
-    "is_public": "boolean",
-    "difficulty_level": "string",
-    "estimated_duration": "integer",
-    "tags": ["string"]
-  }
-  ```
-- **Example Request**:
-  ```json
-  {
-    "title": "Python for Beginners",
-    "description": "A comprehensive guide to Python programming",
-    "is_public": true,
-    "difficulty_level": "beginner",
-    "estimated_duration": 30,
-    "tags": ["python", "programming", "beginner"]
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "id": 1,
-    "title": "Python for Beginners",
-    "description": "A comprehensive guide to Python programming",
-    "is_public": true,
-    "difficulty_level": "beginner",
-    "estimated_duration": 30,
-    "tags": ["python", "programming", "beginner"],
-    "created_by": "user@example.com",
-    "created_at": "2024-03-20T10:00:00Z",
-    "updated_at": "2024-03-20T10:00:00Z"
-  }
-  ```
+- **POST** `/learning-paths/`
+
+### List Learning Paths
+
+- **GET** `/learning-paths/`
+
+### List My Learning Paths
+
+- **GET** `/learning-paths/my`
+
+### Get Learning Path by ID
+
+- **GET** `/learning-paths/{path_id}`
+
+### Delete Learning Path by ID
+
+- **DELETE** `/learning-paths/{path_id}`
+
+### Get User Progress for a Learning Path
+
+- **GET** `/learning-paths/progress/{path_id}`
+
+## Learning Path Step Endpoints
+
+- **Base Path**: `/learning-path-steps`
+
+### List Steps for a Learning Path
+
+- **GET** `/learning-path-steps/{learning_path_id}/steps`
+
+### Create Step for a Learning Path
+
+- **POST** `/learning-path-steps/{learning_path_id}/steps`
+
+### Update Step for a Learning Path
+
+- **PUT** `/learning-path-steps/{learning_path_id}/steps/{step_id}`
+
+### Delete Step for a Learning Path
+
+- **DELETE** `/learning-path-steps/{learning_path_id}/steps/{step_id}`
+
+### Reorder Steps
+
+- **POST** `/learning-path-steps/{learning_path_id}/steps/reorder`
+
+## Progress Endpoints
+
+- **Base Path**: `/progress`
+
+### Record Progress
+
+- **POST** `/progress/record`
+
+### Get User Progress
+
+- **GET** `/progress/user/{user_id}`
+
+### Get Progress for a Learning Path
+
+- **GET** `/progress/learning-path/{learning_path_id}`
+
+### Get Progress Analytics
+
+- **GET** `/progress/analytics`
+
+## Assessment Endpoints
+
+- **Base Path**: `/assessment`
+
+### Create Quiz
+
+- **POST** `/assessment/quizzes`
+
+### List Quizzes
+
+- **GET** `/assessment/quizzes`
+
+### Get Quiz by ID
+
+- **GET** `/assessment/quizzes/{quiz_id}`
+
+### Update Quiz
+
+- **PUT** `/assessment/quizzes/{quiz_id}`
+
+### Delete Quiz
+
+- **DELETE** `/assessment/quizzes/{quiz_id}`
+
+### List Flashcards
+
+- **GET** `/assessment/flashcards`
+
+### Create Flashcard
+
+- **POST** `/assessment/flashcards`
+
+### Update Flashcard
+
+- **PUT** `/assessment/flashcards/{flashcard_id}`
+
+### Delete Flashcard
+
+- **DELETE** `/assessment/flashcards/{flashcard_id}`
+
+### Create Exam
+
+- **POST** `/assessment/exams`
+
+### List Exams
+
+- **GET** `/assessment/exams`
+
+### Get Exam by ID
+
+- **GET** `/assessment/exams/{exam_id}`
+
+### Update Exam
+
+- **PUT** `/assessment/exams/{exam_id}`
+
+### Delete Exam
+
+- **DELETE** `/assessment/exams/{exam_id}`
+
+**All endpoints requiring authentication expect:**
+
+- `Authorization: Bearer <token>` header
+
+**All IDs are UUID strings unless otherwise noted.**
+
+**Request/response schemas match the Pydantic models in the codebase.**

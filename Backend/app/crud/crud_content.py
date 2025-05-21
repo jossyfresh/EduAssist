@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional, List, Union
 from sqlalchemy.orm import Session
 from app.models.enums import ContentType
 from app.schemas.content import ContentCreate, ContentUpdate
@@ -14,7 +14,10 @@ class ContentCRUD(CRUDBase[ContentModel, ContentCreate, ContentUpdate]):
             content_type=ContentType.TEXT,
             content=obj_in.content,
             meta=obj_in.meta or {},
-            created_by=user_id
+            description=getattr(obj_in, 'description', None),
+            created_by=user_id,
+            created_at=datetime.datetime.utcnow(),
+            updated_at=datetime.datetime.utcnow(),
         )
         db.add(db_obj)
         db.commit()
@@ -27,7 +30,10 @@ class ContentCRUD(CRUDBase[ContentModel, ContentCreate, ContentUpdate]):
             content_type=ContentType.VIDEO,
             content=obj_in.content,
             meta=obj_in.meta or {},
-            created_by=user_id
+            description=getattr(obj_in, 'description', None),
+            created_by=user_id,
+            created_at=datetime.datetime.utcnow(),
+            updated_at=datetime.datetime.utcnow(),
         )
         db.add(db_obj)
         db.commit()
@@ -40,7 +46,10 @@ class ContentCRUD(CRUDBase[ContentModel, ContentCreate, ContentUpdate]):
             content_type=ContentType.FILE,
             content=obj_in.content,
             meta=obj_in.meta or {},
-            created_by=user_id
+            description=getattr(obj_in, 'description', None),
+            created_by=user_id,
+            created_at=datetime.datetime.utcnow(),
+            updated_at=datetime.datetime.utcnow(),
         )
         db.add(db_obj)
         db.commit()
@@ -56,11 +65,13 @@ class ContentCRUD(CRUDBase[ContentModel, ContentCreate, ContentUpdate]):
         return db.query(ContentModel).offset(skip).limit(limit).all()
 
     def update(
-        self, db: Session, *, db_obj: ContentModel, obj_in: ContentUpdate
+        self, db: Session, *, db_obj: ContentModel, obj_in: Union[ContentUpdate, Dict[str, Any]]
     ) -> ContentModel:
-        update_data = obj_in.dict(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(db_obj, field, value)
+        data = obj_in.dict(exclude_unset=True) if not isinstance(obj_in, dict) else obj_in
+        for field in data:
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, data[field])
+        db_obj.updated_at = datetime.datetime.utcnow()
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
@@ -94,11 +105,11 @@ class ContentCRUD(CRUDBase[ContentModel, ContentCreate, ContentUpdate]):
 
     def create_quiz(self, db: Session, parameters: Dict[str, Any], user_id: Any) -> ContentModel:
         db_obj = ContentModel(
-            id=uuid4(),
+            id=str(uuid4()),
             title="Generated Quiz",
             content_type=ContentType.QUIZ,
             content="Quiz content here",
-            metadata=parameters,
+            meta=parameters,
             created_by=user_id,
             created_at=datetime.datetime.utcnow(),
             updated_at=datetime.datetime.utcnow(),

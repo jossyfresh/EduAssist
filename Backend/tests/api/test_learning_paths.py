@@ -36,7 +36,7 @@ def test_learning_path_step_data():
     return {
         "title": "Test Step",
         "description": "Test Step Description",
-        "step_order": 1,
+        "order": 1,
         "content_type": ContentType.TEXT,
         "content_id": str(uuid4()),
         "learning_path_id": str(uuid4())
@@ -198,7 +198,7 @@ def test_create_learning_path_step(test_api_user):
     step_data = {
         "title": "Test Step",
         "description": "Test Step Description",
-        "step_order": 1,
+        "order": 1,
         "content_type": "text",
         "content": "Test content"
     }
@@ -210,7 +210,7 @@ def test_create_learning_path_step(test_api_user):
     assert response.status_code == 200
     data = response.json()
     assert data["title"] == step_data["title"]
-    assert data["step_order"] == step_data["step_order"]
+    assert data["order"] == step_data["order"]
 
 def test_get_learning_path_steps(test_api_user):
     # First create a learning path and step
@@ -232,7 +232,7 @@ def test_get_learning_path_steps(test_api_user):
     step_data = {
         "title": "Test Step",
         "description": "Test Step Description",
-        "step_order": 1,
+        "order": 1,
         "content_type": "text",
         "content": "Test content"
     }
@@ -272,7 +272,7 @@ def test_create_user_progress(test_api_user):
     step_data = {
         "title": "Test Step",
         "description": "Test Step Description",
-        "step_order": 1,
+        "order": 1,
         "content_type": "text",
         "content": "Test content"
     }
@@ -322,7 +322,7 @@ def test_get_user_progress(test_api_user):
     step_data = {
         "title": "Test Step",
         "description": "Test Step Description",
-        "step_order": 1,
+        "order": 1,
         "content_type": "text",
         "content": "Test content"
     }
@@ -340,7 +340,7 @@ def test_get_user_progress(test_api_user):
         "/api/v1/learning-paths/progress",
         json={
             "learning_path_id": path_id,
-            "step_id": step_data["step_order"],
+            "step_id": step_data["order"],
             "status": progress_data["status"]
         },
         headers={"Authorization": f"Bearer {test_api_user['access_token']}"}

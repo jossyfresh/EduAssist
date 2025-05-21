@@ -1,18 +1,43 @@
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, UUID4, Field
-from app.models.enums import ContentType
+from app.models.enums import ContentType, ProgressStatus
 from uuid import UUID
+
+class LearningPathStepBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    order: int
+    content_type: ContentType
+    content_id: Optional[str] = None
+    content: Optional[str] = None
+
+class LearningPathStepCreate(LearningPathStepBase):
+    learning_path_id: str
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "title": "Introduction to Python",
+                "description": "Learn the basics of Python programming",
+                "order": 1,
+                "content_type": "video",
+                "content_id": "123e4567-e89b-12d3-a456-426614174002"
+            }
+        }
 
 class LearningPathBase(BaseModel):
     title: str
     description: Optional[str] = None
-    is_public: bool = True
-    difficulty_level: str
-    estimated_duration: int
-    tags: List[str] = []
+    is_public: bool = False
+    difficulty_level: Optional[str] = None
+    estimated_duration: Optional[int] = None
+    tags: List[str] = Field(default_factory=list)
 
 class LearningPathCreate(LearningPathBase):
+    created_by: str
+    steps: Optional[List["LearningPathStepCreate"]] = None
+
     class Config:
         schema_extra = {
             "example": {
@@ -26,66 +51,26 @@ class LearningPathCreate(LearningPathBase):
         }
 
 class LearningPathUpdate(LearningPathBase):
-    class Config:
-        schema_extra = {
-            "example": {
-                "title": "Updated Python Course",
-                "description": "An updated comprehensive guide to Python programming",
-                "is_public": True,
-                "difficulty_level": "intermediate",
-                "estimated_duration": 45,
-                "tags": ["python", "programming", "intermediate"]
-            }
-        }
+    title: Optional[str] = None
+    steps: Optional[List["LearningPathStepUpdate"]] = None
 
-class LearningPathInDBBase(LearningPathBase):
-    id: UUID
-    created_by: UUID
+class LearningPathInDB(LearningPathBase):
+    id: str
+    created_by: str
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime
+    steps: Optional[List["LearningPathStepInDB"]] = None
 
     class Config:
         from_attributes = True
 
-class LearningPathInDB(LearningPathInDBBase):
-    class Config:
-        schema_extra = {
-            "example": {
-                "id": "123e4567-e89b-12d3-a456-426614174000",
-                "title": "Python for Beginners",
-                "description": "A comprehensive guide to Python programming",
-                "is_public": True,
-                "difficulty_level": "beginner",
-                "estimated_duration": 30,
-                "tags": ["python", "programming", "beginner"],
-                "created_by": "123e4567-e89b-12d3-a456-426614174001",
-                "created_at": "2024-03-20T10:00:00Z",
-                "updated_at": "2024-03-20T10:00:00Z"
-            }
-        }
-
-class LearningPathStepBase(BaseModel):
-    title: str
-    description: Optional[str] = None
-    order: int
-    content_id: Optional[UUID] = None
-
-class LearningPathStepCreate(LearningPathStepBase):
-    class Config:
-        schema_extra = {
-            "example": {
-                "title": "Introduction to Python",
-                "description": "Learn the basics of Python programming",
-                "order": 1,
-                "content_id": "123e4567-e89b-12d3-a456-426614174002"
-            }
-        }
-
-class LearningPathStepUpdate(BaseModel):
+class LearningPathStepUpdate(LearningPathStepBase):
     title: Optional[str] = None
-    description: Optional[str] = None
     order: Optional[int] = None
-    content_id: Optional[UUID] = None
+    content_type: Optional[ContentType] = None
+    content_id: Optional[str] = None
+    content: Optional[str] = None
+    learning_path_id: Optional[str] = None
 
     class Config:
         schema_extra = {
@@ -93,33 +78,19 @@ class LearningPathStepUpdate(BaseModel):
                 "title": "Updated Introduction to Python",
                 "description": "Updated basics of Python programming",
                 "order": 2,
+                "content_type": "video",
                 "content_id": "123e4567-e89b-12d3-a456-426614174002"
             }
         }
 
-class LearningPathStepInDBBase(LearningPathStepBase):
-    id: UUID
-    learning_path_id: UUID
+class LearningPathStepInDB(LearningPathStepBase):
+    id: str
+    learning_path_id: str
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime
 
     class Config:
         from_attributes = True
-
-class LearningPathStepInDB(LearningPathStepInDBBase):
-    class Config:
-        schema_extra = {
-            "example": {
-                "id": "123e4567-e89b-12d3-a456-426614174003",
-                "learning_path_id": "123e4567-e89b-12d3-a456-426614174000",
-                "title": "Introduction to Python",
-                "description": "Learn the basics of Python programming",
-                "order": 1,
-                "content_id": "123e4567-e89b-12d3-a456-426614174002",
-                "created_at": "2024-03-20T10:00:00Z",
-                "updated_at": "2024-03-20T10:00:00Z"
-            }
-        }
 
 class LearningPathStep(LearningPathStepBase):
     id: UUID
@@ -136,6 +107,7 @@ class LearningPathStep(LearningPathStepBase):
                 "title": "Introduction to Python",
                 "description": "Learn the basics of Python programming",
                 "order": 1,
+                "content_type": "video",
                 "content_id": "123e4567-e89b-12d3-a456-426614174002",
                 "created_at": "2024-03-20T10:00:00Z",
                 "updated_at": "2024-03-20T10:00:00Z"
@@ -147,7 +119,7 @@ class LearningPath(LearningPathBase):
     created_by: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
-    steps: List[LearningPathStep] = []
+    steps: List[LearningPathStep] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -170,10 +142,59 @@ class LearningPath(LearningPathBase):
                         "title": "Introduction to Python",
                         "description": "Learn the basics of Python programming",
                         "order": 1,
+                        "content_type": "video",
                         "content_id": "123e4567-e89b-12d3-a456-426614174002",
                         "created_at": "2024-03-20T10:00:00Z",
                         "updated_at": "2024-03-20T10:00:00Z"
                     }
                 ]
             }
-        } 
+        }
+
+class ContentItemBase(BaseModel):
+    content_type: ContentType
+    title: str
+    content: str
+    meta: dict = Field(default_factory=dict)
+
+class ContentItemCreate(ContentItemBase):
+    pass
+
+class ContentItemUpdate(ContentItemBase):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    meta: Optional[dict] = None
+
+class UserProgressBase(BaseModel):
+    status: ProgressStatus
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+
+class UserProgressCreate(UserProgressBase):
+    learning_path_id: str
+    step_id: str
+    user_id: str
+
+class UserProgressUpdate(UserProgressBase):
+    status: Optional[ProgressStatus] = None
+    learning_path_id: Optional[str] = None
+    step_id: Optional[str] = None
+    user_id: Optional[str] = None
+
+class UserProgressInDB(UserProgressBase):
+    id: str
+    user_id: str
+    learning_path_id: str
+    step_id: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+LearningPathCreate.update_forward_refs()
+LearningPathUpdate.update_forward_refs()
+LearningPathInDB.update_forward_refs()
+LearningPathStepUpdate.update_forward_refs()
+LearningPathStepInDB.update_forward_refs()
+LearningPath.update_forward_refs() 

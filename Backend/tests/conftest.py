@@ -3,7 +3,7 @@ import os
 from fastapi.testclient import TestClient
 from app.main import app
 from app.core.config import settings
-from uuid import UUID
+from uuid import UUID, uuid4
 from datetime import datetime
 from app.core.security import create_access_token
 from app.models.learning_path import (
@@ -14,16 +14,27 @@ from app.models.learning_path import (
 )
 from app.schemas.content import ContentCreate
 from app.models.enums import ContentType
-from app.db.session import SessionLocal
+from app.db.session import SessionLocal, engine
 from app.crud.crud_user import crud_user
 from app.schemas.user import UserCreate
+from sqlalchemy.orm import Session
 
 # Set test environment variables
 os.environ["TESTING"] = "True"
-os.environ["DATABASE_URL"] = "sqlite:///./test.db"
+os.environ["SQLITE_URL"] = "sqlite:///./test.db"
 os.environ["SECRET_KEY"] = "test-secret-key"
 os.environ["OPENAI_API_KEY"] = "test-openai-key"
 os.environ["GEMINI_API_KEY"] = "test-gemini-key"
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_database():
+    # Create test database tables
+    from app.db.base_class import Base
+    Base.metadata.drop_all(bind=engine)  # Drop all tables first
+    Base.metadata.create_all(bind=engine)
+    yield
+    # Clean up test database
+    Base.metadata.drop_all(bind=engine)
 
 @pytest.fixture(scope="module")
 def client() -> TestClient:
@@ -32,48 +43,72 @@ def client() -> TestClient:
         yield test_client
 
 @pytest.fixture(scope="function", autouse=True)
-def setup_test_environment():
+def setup_test_environment(db: Session):
     # Setup test environment
     settings.TESTING = True
     
+    # Import Base here to avoid circular imports
+    from app.db.base_class import Base
+    
     # Clean up test data before each test
     try:
-        # Use SQLAlchemy to clean up test data
-        pass
+        # Delete all data from tables
+        for table in reversed(Base.metadata.sorted_tables):
+            db.execute(table.delete())
+        db.commit()
     except Exception as e:
         print(f"Warning: Error during cleanup: {e}")
+        db.rollback()
     
     yield
     
     # Clean up test data after each test
     try:
-        # Use SQLAlchemy to clean up test data
-        pass
+        # Delete all data from tables
+        for table in reversed(Base.metadata.sorted_tables):
+            db.execute(table.delete())
+        db.commit()
     except Exception as e:
         print(f"Warning: Error during cleanup: {e}")
+        db.rollback()
 
-@pytest.fixture(scope="session")
-def test_user():
+@pytest.fixture(scope="function")
+def db():
     db = SessionLocal()
-    user_in = UserCreate(
-        email="test@example.com",
-        username="testuser",
-        password="testpassword",
-        full_name="Test User",
-        is_active=True,
-        is_superuser=False
-    )
-    user = crud_user.get_by_email(db, email=user_in.email)
-    if not user:
-        user = crud_user.create(db, obj_in=user_in)
-    db.close()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@pytest.fixture(scope="function")
+def test_user(db: Session):
+    # First try to get existing user
+    existing_user = crud_user.get_by_email(db, email="test@example.com")
+    if existing_user:
+        return existing_user
+        
+    # If no existing user, create new one
     user_data = {
-        "id": user.email,  # use email as id for token
-        "email": user.email,
-        "created_at": user.created_at.isoformat(),
-        "updated_at": user.updated_at.isoformat() if user.updated_at else None
+        "email": "test@example.com",
+        "username": "testuser",
+        "password": "testpass123",
+        "full_name": "Test User",
+        "is_superuser": True
     }
-    return user_data
+    user = crud_user.create(db, obj_in=UserCreate(**user_data))
+    return user
+
+@pytest.fixture
+def token(test_user):
+    access_token = create_access_token(
+        data={"sub": test_user.email},
+        expires_delta=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    return access_token
+
+@pytest.fixture
+def user_id(test_user):
+    return test_user.id
 
 @pytest.fixture
 def test_learning_path_data():
@@ -91,7 +126,7 @@ def test_learning_path_step_data():
     return LearningPathStepCreate(
         title="Test Step",
         description="Test Step Description",
-        step_order=1,
+        order=1,
         content_type=ContentType.TEXT,
         content_id=UUID("396c9a86-8ed9-470e-9a0e-f55a8ea10e8b"),
         learning_path_id=UUID("419790f4-6e99-4a9c-90b8-c148e96214ba")
@@ -116,17 +151,11 @@ def test_user_progress_data():
     )
 
 @pytest.fixture
-def test_user_id():
-    return "bd56ad3b-d644-4cab-8e9c-6113ca46f4ec"
-
-@pytest.fixture
 def test_token(test_user):
-    """Create a test JWT token."""
-    return create_access_token(subject=test_user["id"])
+    return create_access_token(subject=test_user.email)
 
 @pytest.fixture
 def test_headers(test_token):
-    """Create test headers with JWT token."""
     return {"Authorization": f"Bearer {test_token}"}
 
 @pytest.fixture(scope="session")
@@ -141,11 +170,6 @@ def test_api_user():
     user_data["access_token"] = access_token
     return user_data
 
-@pytest.fixture(scope="function")
-def db():
-    """Create a fresh database session for a test."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close() 
+@pytest.fixture
+def auth_token(test_token):
+    return test_token 

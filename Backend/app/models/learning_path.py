@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, UUID4, Field
-from sqlalchemy import Column, String, Integer, ForeignKey, Text, DateTime
+from sqlalchemy import Column, String, Integer, ForeignKey, Text, DateTime, Boolean, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+import uuid
 
 from app.db.base_class import Base
 from app.models.enums import ContentType, ProgressStatus
@@ -34,7 +35,6 @@ class LearningPathInDB(LearningPathBase):
 class LearningPathStepBase(BaseModel):
     title: str
     description: Optional[str] = None
-    step_order: int
     content_type: ContentType
     content_id: Optional[UUID4] = None
 
@@ -43,7 +43,6 @@ class LearningPathStepCreate(LearningPathStepBase):
 
 class LearningPathStepUpdate(LearningPathStepBase):
     title: Optional[str] = None
-    step_order: Optional[int] = None
     content_type: Optional[ContentType] = None
 
 class LearningPathStepInDB(LearningPathStepBase):
@@ -95,12 +94,16 @@ class UserProgressInDB(UserProgressBase):
 class LearningPath(Base):
     __tablename__ = "learning_paths"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     title = Column(String, index=True)
     description = Column(Text)
-    created_by = Column(Integer, ForeignKey("users.id"))
+    created_by = Column(String, ForeignKey("users.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    is_public = Column(Boolean, default=True)
+    difficulty_level = Column(String, nullable=False)
+    estimated_duration = Column(Integer, nullable=False)
+    tags = Column(JSON, default=lambda: [])
 
     # Relationships
     steps = relationship("LearningPathStep", back_populates="learning_path", cascade="all, delete-orphan") 
