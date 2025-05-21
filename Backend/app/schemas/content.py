@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, UUID4, Field
 from app.models.enums import ContentType
 
@@ -38,7 +38,104 @@ class Content(ContentItemInDB):
     pass
 
 class ContentCreate(ContentItemCreate):
-    pass
+    class Config:
+        schema_extra = {
+            "example": {
+                "title": "Introduction to Python",
+                "description": "A beginner's guide to Python programming",
+                "content_type": "text",
+                "content": "Python is a high-level programming language..."
+            }
+        }
 
 class ContentUpdate(ContentItemUpdate):
-    pass 
+    class Config:
+        schema_extra = {
+            "example": {
+                "title": "Updated Title",
+                "description": "Updated Description",
+                "content_type": "text",
+                "content": "Updated content..."
+            }
+        }
+
+class ContentInDBBase(ContentItemBase):
+    id: int
+    created_by: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class Content(ContentInDBBase):
+    class Config:
+        schema_extra = {
+            "example": {
+                "id": 1,
+                "title": "Content Title",
+                "description": "Content Description",
+                "content_type": "text",
+                "content": "Content body...",
+                "created_by": "user@example.com",
+                "created_at": "2024-03-20T10:00:00Z",
+                "updated_at": "2024-03-20T10:00:00Z"
+            }
+        }
+
+class TextContent(Content):
+    class Config:
+        schema_extra = {
+            "example": {
+                "id": 1,
+                "title": "Introduction to Python",
+                "description": "A beginner's guide to Python programming",
+                "content_type": "text",
+                "content": "Python is a high-level programming language...",
+                "created_by": "user@example.com",
+                "created_at": "2024-03-20T10:00:00Z",
+                "updated_at": "2024-03-20T10:00:00Z"
+            }
+        }
+
+class VideoContent(Content):
+    class Config:
+        schema_extra = {
+            "example": {
+                "id": 1,
+                "title": "Video Title",
+                "description": "Video Description",
+                "content_type": "video",
+                "content": "https://example.com/video.mp4",
+                "created_by": "user@example.com",
+                "created_at": "2024-03-20T10:00:00Z",
+                "updated_at": "2024-03-20T10:00:00Z"
+            }
+        }
+
+class ContentGeneratorRequest(BaseModel):
+    content_type: str
+    parameters: Dict[str, Any]
+    provider: str = "openai"
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "content_type": "text",
+                "parameters": {
+                    "prompt": "Explain quantum computing in simple terms",
+                    "max_tokens": 500
+                },
+                "provider": "openai"
+            }
+        }
+
+class ContentGeneratorResponse(BaseModel):
+    content: str
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "content": "Quantum computing is a type of computing that uses quantum bits..."
+            }
+        } 

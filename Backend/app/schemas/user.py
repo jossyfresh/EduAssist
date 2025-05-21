@@ -6,6 +6,14 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+    class Config:
+        schema_extra = {
+            "example": {
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "token_type": "bearer"
+            }
+        }
+
 class TokenPayload(BaseModel):
     sub: Optional[str] = None
 
@@ -20,6 +28,18 @@ class UserCreate(UserBase):
     email: EmailStr
     username: str
     password: str
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "email": "user@example.com",
+                "username": "johndoe",
+                "password": "securepassword123",
+                "full_name": "John Doe",
+                "is_active": True,
+                "is_superuser": False
+            }
+        }
 
 class UserUpdate(UserBase):
     password: Optional[str] = None

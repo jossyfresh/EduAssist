@@ -3,7 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from app.core import security
 from app.core.config import settings
@@ -15,14 +15,44 @@ from app.crud import crud_user
 router = APIRouter()
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
-@router.post("/login", response_model=Token)
+    class Config:
+        schema_extra = {
+            "example": {
+                "email": "user@example.com",
+                "password": "securepassword123"
+            }
+        }
+
+@router.post("/login", response_model=Token, responses={
+    200: {
+        "description": "Successfully logged in",
+        "content": {
+            "application/json": {
+                "example": {
+                    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "token_type": "bearer"
+                }
+            }
+        }
+    },
+    401: {"description": "Incorrect email or password"},
+    400: {"description": "Inactive user"}
+})
 def login(
     db: Session = Depends(deps.get_db),
     login_data: LoginRequest = None
 ) -> Any:
+    """Login to get access token.
+    
+    Example request body:
+    {
+        "email": "user@example.com",
+        "password": "securepassword123"
+    }
+    """
     user = crud_user.authenticate(
         db, email=login_data.email, password=login_data.password
     )
@@ -45,12 +75,46 @@ def login(
         "token_type": "bearer",
     }
 
-@router.post("/register", response_model=Token)
+@router.post("/register", response_model=Token, responses={
+    200: {
+        "description": "Successfully registered",
+        "content": {
+            "application/json": {
+                "example": {
+                    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "token_type": "bearer"
+                }
+            }
+        }
+    },
+    400: {
+        "description": "Email already registered or Username already taken",
+        "content": {
+            "application/json": {
+                "example": {
+                    "detail": "Email already registered"
+                }
+            }
+        }
+    }
+})
 def register(
     *,
     db: Session = Depends(deps.get_db),
     user_in: UserCreate,
 ) -> Any:
+    """Register a new user.
+    
+    Example request body:
+    {
+        "email": "user@example.com",
+        "username": "johndoe",
+        "password": "securepassword123",
+        "full_name": "John Doe",
+        "is_active": true,
+        "is_superuser": false
+    }
+    """
     # Check if email is already registered
     user = crud_user.get_by_email(db, email=user_in.email)
     if user:

@@ -16,7 +16,8 @@ from app.schemas.learning_path import (
     LearningPathUpdate,
     LearningPathInDB,
     LearningPathStepCreate,
-    LearningPathStepInDB
+    LearningPathStepInDB,
+    LearningPathStepUpdate
 )
 from app.schemas.content import (
     ContentItemCreate,
@@ -30,7 +31,11 @@ from app.core.security import get_current_user
 
 router = APIRouter()
 
-@router.post("/", response_model=LearningPathInDB)
+@router.post("/", response_model=LearningPathInDB, responses={
+    200: {"description": "Successfully created learning path", "model": LearningPathInDB},
+    400: {"description": "Invalid input data"},
+    401: {"description": "Not authenticated"}
+})
 async def create_learning_path(
     learning_path_in: LearningPathCreate,
     current_user: dict = Depends(get_current_user),
@@ -54,7 +59,10 @@ async def create_learning_path(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/", response_model=List[LearningPathInDB])
+@router.get("/", response_model=List[LearningPathInDB], responses={
+    200: {"description": "List of learning paths", "model": List[LearningPathInDB]},
+    401: {"description": "Not authenticated"}
+})
 async def get_learning_paths(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -83,7 +91,10 @@ async def get_learning_paths(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/my", response_model=List[LearningPathInDB])
+@router.get("/my", response_model=List[LearningPathInDB], responses={
+    200: {"description": "List of user's learning paths", "model": List[LearningPathInDB]},
+    401: {"description": "Not authenticated"}
+})
 async def get_my_learning_paths(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -112,7 +123,9 @@ async def get_my_learning_paths(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/public", response_model=List[LearningPathInDB])
+@router.get("/public", response_model=List[LearningPathInDB], responses={
+    200: {"description": "List of public learning paths", "model": List[LearningPathInDB]}
+})
 async def get_public_learning_paths(
     db: Session = Depends(get_db)
 ) -> List[LearningPathInDB]:
@@ -140,7 +153,12 @@ async def get_public_learning_paths(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/{path_id}", response_model=LearningPathInDB)
+@router.get("/{path_id}", response_model=LearningPathInDB, responses={
+    200: {"description": "Learning path details", "model": LearningPathInDB},
+    401: {"description": "Not authenticated"},
+    403: {"description": "Not authorized to access this learning path"},
+    404: {"description": "Learning path not found"}
+})
 async def get_learning_path(
     path_id: UUID,
     current_user: dict = Depends(get_current_user),
@@ -172,7 +190,12 @@ async def get_learning_path(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.put("/{path_id}", response_model=LearningPathInDB)
+@router.put("/{path_id}", response_model=LearningPathInDB, responses={
+    200: {"description": "Updated learning path", "model": LearningPathInDB},
+    401: {"description": "Not authenticated"},
+    403: {"description": "Not authorized to update this learning path"},
+    404: {"description": "Learning path not found"}
+})
 async def update_learning_path(
     path_id: UUID,
     learning_path_in: LearningPathUpdate,
@@ -198,13 +221,16 @@ async def update_learning_path(
         if path.created_by != UUID(current_user["id"]):
             raise HTTPException(status_code=403, detail="Not authorized to update this learning path")
         updated_path = crud_learning_path.update(db, id=path_id, obj_in=learning_path_in)
-        if not updated_path:
-            raise HTTPException(status_code=404, detail="Learning path not found")
         return updated_path
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.delete("/{path_id}")
+@router.delete("/{path_id}", responses={
+    204: {"description": "Learning path successfully deleted"},
+    401: {"description": "Not authenticated"},
+    403: {"description": "Not authorized to delete this learning path"},
+    404: {"description": "Learning path not found"}
+})
 async def delete_learning_path(
     path_id: UUID,
     current_user: dict = Depends(get_current_user),
@@ -223,14 +249,17 @@ async def delete_learning_path(
             raise HTTPException(status_code=404, detail="Learning path not found")
         if path.created_by != UUID(current_user["id"]):
             raise HTTPException(status_code=403, detail="Not authorized to delete this learning path")
-        success = crud_learning_path.remove(db, id=path_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Learning path not found")
-        return {"message": "Learning path deleted successfully"}
+        crud_learning_path.remove(db, id=path_id)
+        return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/{path_id}/steps", response_model=LearningPathStepInDB)
+@router.post("/{path_id}/steps", response_model=LearningPathStepInDB, responses={
+    200: {"description": "Created learning path step", "model": LearningPathStepInDB},
+    401: {"description": "Not authenticated"},
+    403: {"description": "Not authorized to add steps to this learning path"},
+    404: {"description": "Learning path not found"}
+})
 async def create_learning_path_step(
     path_id: UUID,
     step_in: LearningPathStepCreate,
@@ -254,12 +283,17 @@ async def create_learning_path_step(
             raise HTTPException(status_code=404, detail="Learning path not found")
         if path.created_by != UUID(current_user["id"]):
             raise HTTPException(status_code=403, detail="Not authorized to add steps to this learning path")
-        created_step = crud_learning_path_step.create(db, obj_in=step_in)
+        created_step = crud_learning_path_step.create(db, obj_in=step_in, learning_path_id=path_id)
         return created_step
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/{path_id}/steps", response_model=List[LearningPathStepInDB])
+@router.get("/{path_id}/steps", response_model=List[LearningPathStepInDB], responses={
+    200: {"description": "List of learning path steps", "model": List[LearningPathStepInDB]},
+    401: {"description": "Not authenticated"},
+    403: {"description": "Not authorized to view steps of this learning path"},
+    404: {"description": "Learning path not found"}
+})
 async def get_learning_path_steps(
     path_id: UUID,
     current_user: dict = Depends(get_current_user),
@@ -287,8 +321,8 @@ async def get_learning_path_steps(
         if not path:
             raise HTTPException(status_code=404, detail="Learning path not found")
         if not path.is_public and path.created_by != UUID(current_user["id"]):
-            raise HTTPException(status_code=403, detail="Not authorized to view steps in this learning path")
-        steps = crud_learning_path_step.get_by_learning_path(db, path_id)
+            raise HTTPException(status_code=403, detail="Not authorized to view steps of this learning path")
+        steps = crud_learning_path_step.get_by_learning_path(db, learning_path_id=path_id)
         return steps
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

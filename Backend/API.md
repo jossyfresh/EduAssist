@@ -17,10 +17,21 @@
     "is_superuser": "boolean (optional, default: false)"
   }
   ```
+- **Example Request**:
+  ```json
+  {
+    "email": "user@example.com",
+    "username": "johndoe",
+    "password": "securepassword123",
+    "full_name": "John Doe",
+    "is_active": true,
+    "is_superuser": false
+  }
+  ```
 - **Response**:
   ```json
   {
-    "access_token": "string",
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "token_type": "bearer"
   }
   ```
@@ -39,10 +50,17 @@
     "password": "string"
   }
   ```
+- **Example Request**:
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "securepassword123"
+  }
+  ```
 - **Response**:
   ```json
   {
-    "access_token": "string",
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "token_type": "bearer"
   }
   ```
@@ -52,194 +70,272 @@
 
 ## Content Management Endpoints
 
-### POST /api/v1/content/upload
+### Upload File
 
-Upload a file.
+- **URL**: `/api/v1/content/upload`
+- **Method**: `POST`
+- **Headers**:
+  - `Authorization`: Bearer {token}
+- **Request Body**:
+  - `file`: File (multipart/form-data)
+- **Example Request**:
 
-**Request Body:**
+  ```
+  Content-Type: multipart/form-data
+  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
-- `file`: File (multipart/form-data)
+  file: [PDF/Image/Video file]
+  ```
 
-**Response:**
+- **Response**:
+  ```json
+  {
+    "id": 1,
+    "title": "uploaded_file.pdf",
+    "description": "Uploaded file description",
+    "content_type": "pdf",
+    "content": "file_url_or_content",
+    "created_by": "user@example.com",
+    "created_at": "2024-03-20T10:00:00Z",
+    "updated_at": "2024-03-20T10:00:00Z"
+  }
+  ```
 
-```json
-{
-  "id": "integer",
-  "title": "string",
-  "description": "string",
-  "content_type": "string",
-  "content": "string",
-  "created_by": "uuid",
-  "created_at": "datetime",
-  "updated_at": "datetime"
-}
-```
+### Create Text Content
 
-### POST /api/v1/content/text
+- **URL**: `/api/v1/content/text`
+- **Method**: `POST`
+- **Headers**:
+  - `Authorization`: Bearer {token}
+- **Request Body**:
+  ```json
+  {
+    "title": "string",
+    "description": "string",
+    "content_type": "text",
+    "content": "string"
+  }
+  ```
+- **Example Request**:
+  ```json
+  {
+    "title": "Introduction to Python",
+    "description": "A beginner's guide to Python programming",
+    "content_type": "text",
+    "content": "Python is a high-level programming language..."
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "id": 1,
+    "title": "Introduction to Python",
+    "description": "A beginner's guide to Python programming",
+    "content_type": "text",
+    "content": "Python is a high-level programming language...",
+    "created_by": "user@example.com",
+    "created_at": "2024-03-20T10:00:00Z",
+    "updated_at": "2024-03-20T10:00:00Z"
+  }
+  ```
 
-Create text content.
+### Create Video Content
 
-**Request Body:**
+- **URL**: `/api/v1/content/video`
+- **Method**: `POST`
+- **Headers**:
+  - `Authorization`: Bearer {token}
+- **Request Body**:
+  ```json
+  {
+    "video_url": "string"
+  }
+  ```
+- **Example Request**:
+  ```json
+  {
+    "video_url": "https://example.com/video.mp4"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "id": 1,
+    "title": "Video Title",
+    "description": "Video Description",
+    "content_type": "video",
+    "content": "https://example.com/video.mp4",
+    "created_by": "user@example.com",
+    "created_at": "2024-03-20T10:00:00Z",
+    "updated_at": "2024-03-20T10:00:00Z"
+  }
+  ```
 
-```json
-{
-  "title": "string",
-  "description": "string",
-  "content_type": "text",
-  "content": "string"
-}
-```
+### Get Content
 
-**Response:**
+- **URL**: `/api/v1/content/{content_id}`
+- **Method**: `GET`
+- **Headers**:
+  - `Authorization`: Bearer {token}
+- **Example Request**:
+  ```
+  GET /api/v1/content/1
+  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  ```
+- **Response**:
+  ```json
+  {
+    "id": 1,
+    "title": "Content Title",
+    "description": "Content Description",
+    "content_type": "text",
+    "content": "Content body...",
+    "created_by": "user@example.com",
+    "created_at": "2024-03-20T10:00:00Z",
+    "updated_at": "2024-03-20T10:00:00Z"
+  }
+  ```
 
-```json
-{
-  "id": "integer",
-  "title": "string",
-  "description": "string",
-  "content_type": "text",
-  "content": "string",
-  "created_by": "uuid",
-  "created_at": "datetime",
-  "updated_at": "datetime"
-}
-```
+### Update Content
 
-### POST /api/v1/content/video
+- **URL**: `/api/v1/content/{content_id}`
+- **Method**: `PUT`
+- **Headers**:
+  - `Authorization`: Bearer {token}
+- **Request Body**:
+  ```json
+  {
+    "title": "string",
+    "description": "string",
+    "content_type": "string",
+    "content": "string"
+  }
+  ```
+- **Example Request**:
+  ```json
+  {
+    "title": "Updated Title",
+    "description": "Updated Description",
+    "content_type": "text",
+    "content": "Updated content..."
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "id": 1,
+    "title": "Updated Title",
+    "description": "Updated Description",
+    "content_type": "text",
+    "content": "Updated content...",
+    "created_by": "user@example.com",
+    "created_at": "2024-03-20T10:00:00Z",
+    "updated_at": "2024-03-20T11:00:00Z"
+  }
+  ```
 
-Create video content from URL.
+### Delete Content
 
-**Request Body:**
+- **URL**: `/api/v1/content/{content_id}`
+- **Method**: `DELETE`
+- **Headers**:
+  - `Authorization`: Bearer {token}
+- **Example Request**:
+  ```
+  DELETE /api/v1/content/1
+  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  ```
+- **Response**:
+  ```json
+  {
+    "id": 1,
+    "title": "Deleted Content",
+    "description": "Content Description",
+    "content_type": "text",
+    "content": "Content body...",
+    "created_by": "user@example.com",
+    "created_at": "2024-03-20T10:00:00Z",
+    "updated_at": "2024-03-20T10:00:00Z"
+  }
+  ```
 
-```json
-{
-  "video_url": "string"
-}
-```
+### Generate Content
 
-**Response:**
-
-```json
-{
-  "id": "integer",
-  "title": "string",
-  "description": "string",
-  "content_type": "video",
-  "content": "string",
-  "created_by": "uuid",
-  "created_at": "datetime",
-  "updated_at": "datetime"
-}
-```
-
-### GET /api/v1/content/{content_id}
-
-Get content by ID.
-
-**Response:**
-
-```json
-{
-  "id": "integer",
-  "title": "string",
-  "description": "string",
-  "content_type": "string",
-  "content": "string",
-  "created_by": "uuid",
-  "created_at": "datetime",
-  "updated_at": "datetime"
-}
-```
-
-### PUT /api/v1/content/{content_id}
-
-Update content.
-
-**Request Body:**
-
-```json
-{
-  "title": "string",
-  "description": "string",
-  "content_type": "string",
-  "content": "string"
-}
-```
-
-**Response:**
-
-```json
-{
-  "id": "integer",
-  "title": "string",
-  "description": "string",
-  "content_type": "string",
-  "content": "string",
-  "created_by": "uuid",
-  "created_at": "datetime",
-  "updated_at": "datetime"
-}
-```
-
-### DELETE /api/v1/content/{content_id}
-
-Delete content.
-
-**Response:**
-
-```json
-{
-  "id": "integer",
-  "title": "string",
-  "description": "string",
-  "content_type": "string",
-  "content": "string",
-  "created_by": "uuid",
-  "created_at": "datetime",
-  "updated_at": "datetime"
-}
-```
-
-### POST /api/v1/content/generate
-
-Generate content using AI providers.
-
-**Request Body:**
-
-```json
-{
-  "content_type": "string",
-  "parameters": {
-    "prompt": "string",
-    "max_tokens": "integer"
-  },
-  "provider": "string"
-}
-```
-
-**Response:**
-
-```json
-{
-  "content": "string"
-}
-```
+- **URL**: `/api/v1/content/generate`
+- **Method**: `POST`
+- **Headers**:
+  - `Authorization`: Bearer {token}
+- **Request Body**:
+  ```json
+  {
+    "content_type": "string",
+    "parameters": {
+      "prompt": "string",
+      "max_tokens": "integer"
+    },
+    "provider": "string"
+  }
+  ```
+- **Example Request**:
+  ```json
+  {
+    "content_type": "text",
+    "parameters": {
+      "prompt": "Explain quantum computing in simple terms",
+      "max_tokens": 500
+    },
+    "provider": "openai"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "content": "Quantum computing is a type of computing that uses quantum bits..."
+  }
+  ```
 
 ## Learning Path Endpoints
 
-### POST /api/v1/learning-paths
+### Create Learning Path
 
-Create a new learning path.
-
-**Request Body:**
-
-```json
-{
-  "title": "string",
-  "description": "string",
-  "is_public": "boolean",
-  "difficulty_level": "string",
-  "estimated_duration": "integer",
-  "tags": ["string"]
-}
-```
+- **URL**: `/api/v1/learning-paths`
+- **Method**: `POST`
+- **Headers**:
+  - `Authorization`: Bearer {token}
+- **Request Body**:
+  ```json
+  {
+    "title": "string",
+    "description": "string",
+    "is_public": "boolean",
+    "difficulty_level": "string",
+    "estimated_duration": "integer",
+    "tags": ["string"]
+  }
+  ```
+- **Example Request**:
+  ```json
+  {
+    "title": "Python for Beginners",
+    "description": "A comprehensive guide to Python programming",
+    "is_public": true,
+    "difficulty_level": "beginner",
+    "estimated_duration": 30,
+    "tags": ["python", "programming", "beginner"]
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "id": 1,
+    "title": "Python for Beginners",
+    "description": "A comprehensive guide to Python programming",
+    "is_public": true,
+    "difficulty_level": "beginner",
+    "estimated_duration": 30,
+    "tags": ["python", "programming", "beginner"],
+    "created_by": "user@example.com",
+    "created_at": "2024-03-20T10:00:00Z",
+    "updated_at": "2024-03-20T10:00:00Z"
+  }
+  ```
