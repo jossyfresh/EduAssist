@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from app.core import security
 from app.core.config import settings
@@ -13,13 +14,17 @@ from app.crud import crud_user
 
 router = APIRouter()
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 @router.post("/login", response_model=Token)
 def login(
     db: Session = Depends(deps.get_db),
-    form_data: OAuth2PasswordRequestForm = Depends()
+    login_data: LoginRequest = None
 ) -> Any:
     user = crud_user.authenticate(
-        db, email=form_data.username, password=form_data.password
+        db, email=login_data.email, password=login_data.password
     )
     if not user:
         raise HTTPException(
@@ -46,6 +51,7 @@ def register(
     db: Session = Depends(deps.get_db),
     user_in: UserCreate,
 ) -> Any:
+    # Check if email is already registered
     user = crud_user.get_by_email(db, email=user_in.email)
     if user:
         raise HTTPException(
@@ -53,6 +59,7 @@ def register(
             detail="Email already registered",
         )
     
+    # Check if username is already taken
     user = crud_user.get_by_username(db, username=user_in.username)
     if user:
         raise HTTPException(
@@ -60,8 +67,11 @@ def register(
             detail="Username already taken",
         )
     
-    user = crud_user.create(db, obj_in=user_in)
+    # Create new user with all provided fields
+    user_data = user_in.dict()
+    user = crud_user.create(db, obj_in=UserCreate(**user_data))
     
+    # Generate access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return {
         "access_token": security.create_access_token(
