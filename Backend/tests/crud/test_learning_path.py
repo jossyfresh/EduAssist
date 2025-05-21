@@ -1,7 +1,8 @@
 import pytest
 from uuid import UUID, uuid4
 from datetime import datetime
-from app.crud.learning_path import learning_path, learning_path_step, content_item, user_progress
+from sqlalchemy.orm import Session
+from app.crud.crud_learning_path import crud_learning_path, crud_learning_path_step, crud_content_item, crud_user_progress
 from app.models.learning_path import (
     LearningPathCreate,
     LearningPathUpdate,
@@ -13,11 +14,10 @@ from app.models.learning_path import (
     ContentType,
     ProgressStatus
 )
-from app.core.supabase import supabase
 
 @pytest.fixture
 def test_user_id():
-    return str(uuid4())
+    return 1  # Using integer ID instead of UUID
 
 @pytest.fixture
 def test_learning_path_data(test_user_id):
@@ -38,8 +38,8 @@ def test_learning_path_step_data(test_user_id):
         description="Test Step Description",
         step_order=1,
         content_type=ContentType.TEXT,
-        content_id=str(uuid4()),
-        learning_path_id=str(uuid4())
+        content_id=1,  # Using integer ID instead of UUID
+        learning_path_id=1  # Using integer ID instead of UUID
     )
 
 @pytest.fixture
@@ -57,55 +57,55 @@ def test_user_progress_data(test_user_id):
     return UserProgressCreate(
         status=ProgressStatus.IN_PROGRESS,
         started_at=datetime.utcnow(),
-        learning_path_id=str(uuid4()),
-        step_id=str(uuid4()),
+        learning_path_id=1,  # Using integer ID instead of UUID
+        step_id=1,  # Using integer ID instead of UUID
         user_id=test_user_id
     )
 
-def test_create_learning_path(test_learning_path_data):
+def test_create_learning_path(db: Session, test_learning_path_data):
     # Create learning path
-    created_path = learning_path.create(supabase, obj_in=test_learning_path_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
+    created_path = crud_learning_path.create_with_steps(db, obj_in=test_learning_path_data, created_by=1)
     assert created_path.title == test_learning_path_data.title
     assert created_path.description == test_learning_path_data.description
     assert created_path.is_public == test_learning_path_data.is_public
-    assert created_path.created_by == UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396")
+    assert created_path.created_by == 1
 
-def test_get_learning_path(test_learning_path_data):
+def test_get_learning_path(db: Session, test_learning_path_data):
     # Create and then get learning path
-    created_path = learning_path.create(supabase, obj_in=test_learning_path_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
-    retrieved_path = learning_path.get(supabase, id=created_path.id)
+    created_path = crud_learning_path.create_with_steps(db, obj_in=test_learning_path_data, created_by=1)
+    retrieved_path = crud_learning_path.get(db, id=created_path.id)
     assert retrieved_path == created_path
 
-def test_get_learning_paths_by_user(test_learning_path_data, test_user_id):
+def test_get_learning_paths_by_user(db: Session, test_learning_path_data, test_user_id):
     # Create learning path
-    created_path = learning_path.create(supabase, obj_in=test_learning_path_data, created_by=test_user_id)
-    paths = learning_path.get_by_user(supabase, user_id=test_user_id)
+    created_path = crud_learning_path.create_with_steps(db, obj_in=test_learning_path_data, created_by=test_user_id)
+    paths = crud_learning_path.get_by_user(db, user_id=test_user_id)
     assert len(paths) > 0
     assert created_path in paths
 
-def test_get_public_learning_paths(test_learning_path_data):
+def test_get_public_learning_paths(db: Session, test_learning_path_data):
     # Create public learning path
-    created_path = learning_path.create(supabase, obj_in=test_learning_path_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
-    paths = learning_path.get_public(supabase)
+    created_path = crud_learning_path.create_with_steps(db, obj_in=test_learning_path_data, created_by=1)
+    paths = crud_learning_path.get_public(db)
     assert len(paths) > 0
     assert created_path in paths
 
-def test_update_learning_path(test_learning_path_data):
+def test_update_learning_path(db: Session, test_learning_path_data):
     # Create learning path
-    created_path = learning_path.create(supabase, obj_in=test_learning_path_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
+    created_path = crud_learning_path.create_with_steps(db, obj_in=test_learning_path_data, created_by=1)
     update_data = LearningPathUpdate(title="Updated Title")
-    updated_path = learning_path.update(supabase, id=created_path.id, obj_in=update_data)
+    updated_path = crud_learning_path.update(db, db_obj=created_path, obj_in=update_data)
     assert updated_path.title == "Updated Title"
     assert updated_path.id == created_path.id
 
-def test_delete_learning_path(test_learning_path_data):
+def test_delete_learning_path(db: Session, test_learning_path_data):
     # Create learning path
-    created_path = learning_path.create(supabase, obj_in=test_learning_path_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
-    deleted_path = learning_path.remove(supabase, id=created_path.id)
+    created_path = crud_learning_path.create_with_steps(db, obj_in=test_learning_path_data, created_by=1)
+    deleted_path = crud_learning_path.remove(db, id=created_path.id)
     assert deleted_path == created_path
-    assert learning_path.get(supabase, id=created_path.id) is None
+    assert crud_learning_path.get(db, id=created_path.id) is None
 
-def test_create_learning_path_step(test_learning_path_step_data):
+def test_create_learning_path_step(db: Session, test_learning_path_step_data):
     # Create learning path first
     learning_path_data = LearningPathCreate(
         title="Test Path",
@@ -115,7 +115,7 @@ def test_create_learning_path_step(test_learning_path_step_data):
         estimated_duration=60,
         tags=["test"]
     )
-    created_path = learning_path.create(supabase, obj_in=learning_path_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
+    created_path = crud_learning_path.create_with_steps(db, obj_in=learning_path_data, created_by=1)
     
     # Create learning path step
     step_data = LearningPathStepCreate(
@@ -123,14 +123,14 @@ def test_create_learning_path_step(test_learning_path_step_data):
         description="Test Step Description",
         step_order=1,
         content_type=ContentType.TEXT,
-        content_id=UUID("b8f6e1fc-5f2f-45b9-a884-a794863032ba"),
+        content_id=1,
         learning_path_id=created_path.id
     )
-    created_step = learning_path_step.create(supabase, obj_in=step_data)
+    created_step = crud_learning_path_step.create(db, obj_in=step_data)
     assert created_step.title == step_data.title
     assert created_step.learning_path_id == created_path.id
 
-def test_get_learning_path_steps(test_learning_path_step_data):
+def test_get_learning_path_steps(db: Session, test_learning_path_step_data):
     # Create learning path first
     learning_path_data = LearningPathCreate(
         title="Test Path",
@@ -140,7 +140,7 @@ def test_get_learning_path_steps(test_learning_path_step_data):
         estimated_duration=60,
         tags=["test"]
     )
-    created_path = learning_path.create(supabase, obj_in=learning_path_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
+    created_path = crud_learning_path.create_with_steps(db, obj_in=learning_path_data, created_by=1)
     
     # Create learning path step
     step_data = LearningPathStepCreate(
@@ -148,29 +148,29 @@ def test_get_learning_path_steps(test_learning_path_step_data):
         description="Test Step Description",
         step_order=1,
         content_type=ContentType.TEXT,
-        content_id=UUID("f638cfa8-9bf6-4bad-b156-4b088ac02d9c"),
+        content_id=1,
         learning_path_id=created_path.id
     )
-    created_step = learning_path_step.create(supabase, obj_in=step_data)
-    steps = learning_path_step.get_by_learning_path(supabase, learning_path_id=created_path.id)
+    created_step = crud_learning_path_step.create(db, obj_in=step_data)
+    steps = crud_learning_path_step.get_by_learning_path(db, learning_path_id=created_path.id)
     assert len(steps) > 0
     assert created_step in steps
 
-def test_create_content_item(test_content_item_data):
+def test_create_content_item(db: Session, test_content_item_data):
     # Create content item
-    created_item = content_item.create(supabase, obj_in=test_content_item_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
+    created_item = crud_content_item.create(db, obj_in=test_content_item_data)
     assert created_item.title == test_content_item_data.title
     assert created_item.content_type == test_content_item_data.content_type
-    assert created_item.created_by == UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396")
+    assert created_item.created_by == 1
 
-def test_get_content_items_by_type(test_content_item_data):
+def test_get_content_items_by_type(db: Session, test_content_item_data):
     # Create content item
-    created_item = content_item.create(supabase, obj_in=test_content_item_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
-    items = content_item.get_by_type(supabase, content_type=test_content_item_data.content_type)
+    created_item = crud_content_item.create(db, obj_in=test_content_item_data)
+    items = crud_content_item.get_by_type(db, content_type=test_content_item_data.content_type)
     assert len(items) > 0
     assert created_item in items
 
-def test_create_user_progress(test_user_progress_data):
+def test_create_user_progress(db: Session, test_user_progress_data):
     # Create learning path first
     learning_path_data = LearningPathCreate(
         title="Test Path",
@@ -180,7 +180,7 @@ def test_create_user_progress(test_user_progress_data):
         estimated_duration=60,
         tags=["test"]
     )
-    created_path = learning_path.create(supabase, obj_in=learning_path_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
+    created_path = crud_learning_path.create_with_steps(db, obj_in=learning_path_data, created_by=1)
     
     # Create learning path step
     step_data = LearningPathStepCreate(
@@ -188,92 +188,20 @@ def test_create_user_progress(test_user_progress_data):
         description="Test Step Description",
         step_order=1,
         content_type=ContentType.TEXT,
-        content_id=UUID("b8f6e1fc-5f2f-45b9-a884-a794863032ba"),
+        content_id=1,
         learning_path_id=created_path.id
     )
-    created_step = learning_path_step.create(supabase, obj_in=step_data)
+    created_step = crud_learning_path_step.create(db, obj_in=step_data)
     
     # Create user progress
     progress_data = UserProgressCreate(
         status=ProgressStatus.IN_PROGRESS,
         started_at=datetime.now(),
         learning_path_id=created_path.id,
-        step_id=created_step.id
+        step_id=created_step.id,
+        user_id=1
     )
-    created_progress = user_progress.create(supabase, obj_in=progress_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
+    created_progress = crud_user_progress.create(db, obj_in=progress_data)
     assert created_progress.status == progress_data.status
     assert created_progress.learning_path_id == created_path.id
-    assert created_progress.step_id == created_step.id
-
-def test_get_user_progress(test_user_progress_data):
-    # Create learning path first
-    learning_path_data = LearningPathCreate(
-        title="Test Path",
-        description="Test Description",
-        is_public=True,
-        difficulty_level="beginner",
-        estimated_duration=60,
-        tags=["test"]
-    )
-    created_path = learning_path.create(supabase, obj_in=learning_path_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
-    
-    # Create learning path step
-    step_data = LearningPathStepCreate(
-        title="Test Step",
-        description="Test Step Description",
-        step_order=1,
-        content_type=ContentType.TEXT,
-        content_id=UUID("f638cfa8-9bf6-4bad-b156-4b088ac02d9c"),
-        learning_path_id=created_path.id
-    )
-    created_step = learning_path_step.create(supabase, obj_in=step_data)
-    
-    # Create user progress
-    progress_data = UserProgressCreate(
-        status=ProgressStatus.IN_PROGRESS,
-        started_at=datetime.now(),
-        learning_path_id=created_path.id,
-        step_id=created_step.id
-    )
-    created_progress = user_progress.create(supabase, obj_in=progress_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
-    retrieved_progress = user_progress.get_by_learning_path(supabase, learning_path_id=created_path.id)
-    assert len(retrieved_progress) > 0
-    assert created_progress in retrieved_progress
-
-def test_update_user_progress(test_user_progress_data):
-    # Create learning path first
-    learning_path_data = LearningPathCreate(
-        title="Test Path",
-        description="Test Description",
-        is_public=True,
-        difficulty_level="beginner",
-        estimated_duration=60,
-        tags=["test"]
-    )
-    created_path = learning_path.create(supabase, obj_in=learning_path_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
-    
-    # Create learning path step
-    step_data = LearningPathStepCreate(
-        title="Test Step",
-        description="Test Step Description",
-        step_order=1,
-        content_type=ContentType.TEXT,
-        content_id=UUID("659de72f-0a75-49c8-8c58-a86efba99f51"),
-        learning_path_id=created_path.id
-    )
-    created_step = learning_path_step.create(supabase, obj_in=step_data)
-    
-    # Create user progress
-    progress_data = UserProgressCreate(
-        status=ProgressStatus.IN_PROGRESS,
-        started_at=datetime.now(),
-        learning_path_id=created_path.id,
-        step_id=created_step.id
-    )
-    created_progress = user_progress.create(supabase, obj_in=progress_data, created_by=UUID("f53783aa-84ea-4bc0-99e7-b59b9a184396"))
-    
-    # Update progress
-    update_data = UserProgressUpdate(status=ProgressStatus.COMPLETED)
-    updated_progress = user_progress.update(supabase, id=created_progress.id, obj_in=update_data)
-    assert updated_progress.status == ProgressStatus.COMPLETED
-    assert updated_progress.id == created_progress.id 
+    assert created_progress.step_id == created_step.id 

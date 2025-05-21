@@ -1,7 +1,6 @@
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
-from supabase import Client
 
 from app.crud.base import CRUDBase
 from app.models.learning_path import LearningPath
@@ -83,40 +82,45 @@ class CRUDLearningPath(CRUDBase[LearningPath, LearningPathCreate, LearningPathUp
         db.refresh(db_obj)
         return db_obj
 
-    def get_by_user(self, supabase: Client, user_id: UUID) -> List[LearningPathInDB]:
+    def get_by_user(self, db: Session, user_id: int) -> List[LearningPath]:
         """Get all learning paths created by a user."""
-        result = supabase.table("learning_paths").select("*").eq("created_by", str(user_id)).execute()
-        return [LearningPathInDB(**item) for item in result.data]
+        return db.query(self.model).filter(LearningPath.created_by == user_id).all()
 
-    def get_public(self, supabase: Client) -> List[LearningPathInDB]:
+    def get_public(self, db: Session) -> List[LearningPath]:
         """Get all public learning paths."""
-        result = supabase.table("learning_paths").select("*").eq("is_public", True).execute()
-        return [LearningPathInDB(**item) for item in result.data]
+        return db.query(self.model).filter(LearningPath.is_public == True).all()
 
 class CRUDLearningPathStep(CRUDBase[LearningPathStep, LearningPathStepCreate, LearningPathStepUpdate]):
-    def get_by_learning_path(self, supabase: Client, learning_path_id: UUID) -> List[LearningPathStepInDB]:
+    def get_by_learning_path(self, db: Session, learning_path_id: int) -> List[LearningPathStep]:
         """Get all steps for a learning path."""
-        result = supabase.table("learning_path_steps").select("*").eq("learning_path_id", str(learning_path_id)).order("step_order").execute()
-        return [LearningPathStepInDB(**item) for item in result.data]
+        return (
+            db.query(self.model)
+            .filter(LearningPathStep.learning_path_id == learning_path_id)
+            .order_by(LearningPathStep.step_order)
+            .all()
+        )
 
 class CRUDContentItem(CRUDBase[ContentItemInDB, ContentItemCreate, ContentItemUpdate]):
-    def get_by_type(self, supabase: Client, content_type: ContentType) -> List[ContentItemInDB]:
+    def get_by_type(self, db: Session, content_type: ContentType) -> List[ContentItemInDB]:
         """Get all content items of a specific type."""
-        result = supabase.table("content_items").select("*").eq("content_type", content_type.value).execute()
-        return [ContentItemInDB(**item) for item in result.data]
+        return db.query(self.model).filter(self.model.content_type == content_type).all()
 
 class CRUDUserProgress(CRUDBase[UserProgressInDB, UserProgressCreate, UserProgressUpdate]):
-    def get_by_learning_path(self, supabase: Client, user_id: UUID, learning_path_id: UUID) -> List[UserProgressInDB]:
+    def get_by_learning_path(self, db: Session, user_id: int, learning_path_id: int) -> List[UserProgressInDB]:
         """Get all progress entries for a user in a learning path."""
-        result = supabase.table("user_progress").select("*").eq("user_id", str(user_id)).eq("learning_path_id", str(learning_path_id)).execute()
-        return [UserProgressInDB(**item) for item in result.data]
+        return (
+            db.query(self.model)
+            .filter(self.model.user_id == user_id, self.model.learning_path_id == learning_path_id)
+            .all()
+        )
 
-    def get_by_step(self, supabase: Client, user_id: UUID, step_id: UUID) -> Optional[UserProgressInDB]:
+    def get_by_step(self, db: Session, user_id: int, step_id: int) -> Optional[UserProgressInDB]:
         """Get progress for a specific step."""
-        result = supabase.table("user_progress").select("*").eq("user_id", str(user_id)).eq("step_id", str(step_id)).execute()
-        if result.data:
-            return UserProgressInDB(**result.data[0])
-        return None
+        return (
+            db.query(self.model)
+            .filter(self.model.user_id == user_id, self.model.step_id == step_id)
+            .first()
+        )
 
 # Create instances of the CRUD classes
 crud_learning_path = CRUDLearningPath(LearningPath)
