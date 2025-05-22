@@ -4,6 +4,7 @@ from app.models.enums import ContentType
 import uuid
 from datetime import datetime
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
 class Content(Base):
     __tablename__ = "content"
@@ -17,6 +18,8 @@ class Content(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     description = Column(String, nullable=True)
+    course_id = Column(String, ForeignKey("courses.id"), nullable=True)
+    course = relationship("Course", back_populates="contents")
 
     def __repr__(self):
-        return f"<Content {self.title}>" 
+        return f"<Content {self.title}>"

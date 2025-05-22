@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 # Set test environment variables
 os.environ["TESTING"] = "True"
-os.environ["SQLITE_URL"] = "sqlite:///./test.db"
+os.environ["SQLITE_URL"] = "sqlite:///Backend/test.db"
 os.environ["SECRET_KEY"] = "test-secret-key"
 os.environ["OPENAI_API_KEY"] = "test-openai-key"
 os.environ["GEMINI_API_KEY"] = "test-gemini-key"
@@ -158,18 +158,30 @@ def test_token(test_user):
 def test_headers(test_token):
     return {"Authorization": f"Bearer {test_token}"}
 
-@pytest.fixture(scope="session")
-def test_api_user():
-    user_data = {
-        "id": "testapi@example.com",  # use email as id
-        "email": "testapi@example.com",
-        "created_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat()
+@pytest.fixture(scope="function")
+def test_api_user(db):
+    from app.schemas.user import UserCreate
+    from app.crud.crud_user import crud_user
+    email = "testapi@example.com"
+    user = crud_user.get_by_email(db, email=email)
+    if not user:
+        user_data = UserCreate(
+            email=email,
+            username="testapi",
+            password="testpass123",
+            full_name="Test API User",
+            is_superuser=True
+        )
+        user = crud_user.create(db, obj_in=user_data)
+    access_token = create_access_token(subject=user.email)
+    return {
+        "id": user.id,
+        "email": user.email,
+        "created_at": str(user.created_at) if hasattr(user, 'created_at') else None,
+        "updated_at": str(user.updated_at) if hasattr(user, 'updated_at') else None,
+        "access_token": access_token
     }
-    access_token = create_access_token(subject=user_data["id"])
-    user_data["access_token"] = access_token
-    return user_data
 
 @pytest.fixture
 def auth_token(test_token):
-    return test_token 
+    return test_token

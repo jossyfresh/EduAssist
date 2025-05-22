@@ -9,6 +9,7 @@ class ContentBase(BaseModel):
     content: str
     meta: Optional[Dict[str, Any]] = Field(default_factory=dict)
     description: Optional[str] = None
+    course_id: Optional[str] = None
 
 class ContentCreate(ContentBase):
     pass
@@ -19,6 +20,7 @@ class ContentUpdate(BaseModel):
     content: Optional[str] = None
     meta: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
+    course_id: Optional[str] = None
 
 class Content(BaseModel):
     id: str
@@ -30,6 +32,7 @@ class Content(BaseModel):
     created_by: str
     created_at: datetime
     updated_at: datetime
+    course_id: Optional[str] = None
 
     class Config:
         orm_mode = True
@@ -55,4 +58,4 @@ class ContentGeneratorResponse(BaseModel):
             "example": {
                 "content": "Quantum computing is a type of computing that uses quantum bits..."
             }
-        } 
+        }

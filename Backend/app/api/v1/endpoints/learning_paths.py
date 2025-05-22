@@ -27,6 +27,7 @@ from app.schemas.progress import (
     UserProgressInDB
 )
 from app.api import deps
+from app.models.user import User
 
 router = APIRouter()
 
@@ -37,7 +38,7 @@ router = APIRouter()
 })
 async def create_learning_path(
     learning_path_in: LearningPathCreate,
-    current_user: dict = Depends(deps.get_current_active_user),
+    current_user: "User" = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> LearningPathInDB:
     """Create a new learning path.
@@ -53,7 +54,7 @@ async def create_learning_path(
     }
     """
     try:
-        created_path = crud_learning_path.create(db, obj_in=learning_path_in, created_by=UUID(current_user["id"]))
+        created_path = crud_learning_path.create(db, obj_in=learning_path_in, created_by=str(current_user.id))
         return created_path
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -63,7 +64,7 @@ async def create_learning_path(
     401: {"description": "Not authenticated"}
 })
 async def get_learning_paths(
-    current_user: dict = Depends(deps.get_current_active_user),
+    current_user: "User" = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> List[LearningPathInDB]:
     """Get all learning paths.
@@ -85,7 +86,7 @@ async def get_learning_paths(
     ]
     """
     try:
-        paths = crud_learning_path.get_by_user(db, UUID(current_user["id"]))
+        paths = crud_learning_path.get_by_user(db, user_id=str(current_user.id))
         return paths
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -95,7 +96,7 @@ async def get_learning_paths(
     401: {"description": "Not authenticated"}
 })
 async def get_my_learning_paths(
-    current_user: dict = Depends(deps.get_current_active_user),
+    current_user: "User" = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
 ) -> List[LearningPathInDB]:
     """Get learning paths created by the current user.
@@ -117,7 +118,7 @@ async def get_my_learning_paths(
     ]
     """
     try:
-        paths = crud_learning_path.get_by_user(db, UUID(current_user["id"]))
+        paths = crud_learning_path.get_by_user(db, user_id=str(current_user.id))
         return paths
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -399,4 +400,4 @@ async def get_user_progress(
         progress = crud_user_progress.get_by_user_and_path(db, UUID(current_user["id"]), path_id)
         return progress
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e)) 
+        raise HTTPException(status_code=400, detail=str(e))

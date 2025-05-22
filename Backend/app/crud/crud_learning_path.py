@@ -22,22 +22,19 @@ from app.schemas.progress import (
 )
 
 class CRUDLearningPath(CRUDBase[LearningPath, LearningPathCreate, LearningPathUpdate]):
-    def create_with_steps(
-        self, db: Session, *, obj_in: LearningPathCreate, created_by: str
+    def create(
+        self, db: Session, obj_in: LearningPathCreate, created_by: str
     ) -> LearningPath:
-        obj_in_data = obj_in.dict()
-        steps = obj_in_data.pop("steps", [])
-        db_obj = LearningPath(**obj_in_data, created_by=str(created_by))
+        obj_in_data = obj_in.dict(exclude={"steps"})
+        db_obj = LearningPath(**obj_in_data, created_by=created_by)
         db.add(db_obj)
-        db.flush()  # Flush to get the ID
-
+        db.flush()  # Get db_obj.id
         # Create steps if provided
+        steps = obj_in.steps or []
         for step_data in steps:
             step_dict = step_data.dict()
             step_dict["learning_path_id"] = db_obj.id
-            step_dict["order"] = step_dict.pop("order", 1)
             db.add(LearningPathStep(**step_dict))
-
         db.commit()
         db.refresh(db_obj)
         return db_obj
@@ -118,4 +115,4 @@ class CRUDUserProgress(CRUDBase[UserProgressInDB, UserProgressCreate, UserProgre
 # Create instances of the CRUD classes
 crud_learning_path = CRUDLearningPath(LearningPath)
 crud_learning_path_step = CRUDLearningPathStep(LearningPathStep)
-crud_user_progress = CRUDUserProgress(UserProgressInDB) 
+crud_user_progress = CRUDUserProgress(UserProgressInDB)

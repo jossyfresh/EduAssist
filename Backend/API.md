@@ -96,312 +96,201 @@
 
 - **DELETE** `/users/{user_id}`
 
-## Content Endpoints
-
-- **Base Path**: `/content`
-
-### Create Text Content
-
-- **URL**: `/content/text`
-- **Method**: `POST`
-- **Auth Required**: Yes
-- **Request Body**:
-  ```json
-  {
-    "title": "string",
-    "content_type": "text",
-    "content": "string",
-    "meta": {},
-    "description": "string (optional)"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "id": "string",
-    "title": "string",
-    "content_type": "text",
-    "content": "string",
-    "meta": {},
-    "description": "string",
-    "created_by": "string",
-    "created_at": "datetime",
-    "updated_at": "datetime"
-  }
-  ```
-- **Error Responses**:
-  - `401 Unauthorized`: Not authenticated
-  - `400 Bad Request`: Invalid input data
-
-### Create Video Content
-
-- **URL**: `/content/video`
-- **Method**: `POST`
-- **Auth Required**: Yes
-- **Request Body**:
-  ```json
-  {
-    "video_url": "string"
-  }
-  ```
-- **Response**: Same as Create Text Content
-- **Error Responses**:
-  - `401 Unauthorized`: Not authenticated
-  - `400 Bad Request`: Invalid input data
-
-### Upload File
-
-- **URL**: `/content/upload`
-- **Method**: `POST`
-- **Auth Required**: Yes
-- **Request Body**: `multipart/form-data`
-  - `file`: File to upload
-- **Response**: Same as Create Text Content
-- **Error Responses**:
-  - `401 Unauthorized`: Not authenticated
-  - `400 Bad Request`: Invalid file
-  - `413 Payload Too Large`: File too large
-  - `500 Internal Server Error`: Upload failed
-
-### Get Content by ID
-
-- **URL**: `/content/{content_id}`
-- **Method**: `GET`
-- **Auth Required**: Yes
-- **Response**: Same as Create Text Content
-- **Error Responses**:
-  - `401 Unauthorized`: Not authenticated
-  - `404 Not Found`: Content not found
-
-### Update Content
-
-- **URL**: `/content/{content_id}`
-- **Method**: `PUT`
-- **Auth Required**: Yes
-- **Request Body**:
-  ```json
-  {
-    "title": "string (optional)",
-    "content_type": "string (optional)",
-    "content": "string (optional)",
-    "meta": {} (optional),
-    "description": "string (optional)"
-  }
-  ```
-- **Response**: Same as Create Text Content
-- **Error Responses**:
-  - `401 Unauthorized`: Not authenticated
-  - `403 Forbidden`: Not authorized to update this content
-  - `404 Not Found`: Content not found
-
-### Delete Content
-
-- **URL**: `/content/{content_id}`
-- **Method**: `DELETE`
-- **Auth Required**: Yes
-- **Response**: Same as Create Text Content
-- **Error Responses**:
-  - `401 Unauthorized`: Not authenticated
-  - `404 Not Found`: Content not found
-
-### Generate Content (AI)
-
-- **URL**: `/content/generate`
-- **Method**: `POST`
-- **Auth Required**: Yes
-- **Request Body**:
-  ```json
-  {
-    "content_type": "string",
-    "parameters": {},
-    "provider": "string (default: openai)"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "content": "string"
-  }
-  ```
-- **Error Responses**:
-  - `401 Unauthorized`: Not authenticated
-  - `400 Bad Request`: Invalid input data
-  - `500 Internal Server Error`: Generation failed
+## Content Management
+
+### Upload Files
+
+- **POST** `/content/upload`
+  - Upload multiple files
+  - Request: `multipart/form-data` with `files` field
+  - Response:
+    ```json
+    {
+      "batch_id": "uuid",
+      "files": [
+        {
+          "id": "uuid",
+          "title": "filename",
+          "content_type": "FILE",
+          "content": "base64_content",
+          "meta": {
+            "filename": "original_filename",
+            "content_type": "mime_type",
+            "size": 1234,
+            "batch_id": "uuid"
+          },
+          "description": "Uploaded file: filename",
+          "created_by": "user_id",
+          "created_at": "timestamp",
+          "updated_at": "timestamp"
+        }
+      ]
+    }
+    ```
+
+### Batch File Management
+
+#### Get Batch Files
+
+- **GET** `/content/batch/{batch_id}`
+  - Get all files in a batch
+  - Response:
+    ```json
+    {
+      "batch_id": "uuid",
+      "files": [
+        {
+          "id": "uuid",
+          "title": "filename",
+          "content_type": "FILE",
+          "content": "base64_content",
+          "meta": {
+            "filename": "original_filename",
+            "content_type": "mime_type",
+            "size": 1234,
+            "batch_id": "uuid"
+          },
+          "description": "Uploaded file: filename",
+          "created_by": "user_id",
+          "created_at": "timestamp",
+          "updated_at": "timestamp"
+        }
+      ]
+    }
+    ```
+
+#### Add Files to Batch
+
+- **POST** `/content/batch/{batch_id}/files`
+  - Add files to an existing batch
+  - Request: `multipart/form-data` with `files` field
+  - Response:
+    ```json
+    {
+      "batch_id": "uuid",
+      "added_files": [
+        {
+          "id": "uuid",
+          "title": "filename",
+          "content_type": "FILE",
+          "content": "base64_content",
+          "meta": {
+            "filename": "original_filename",
+            "content_type": "mime_type",
+            "size": 1234,
+            "batch_id": "uuid"
+          },
+          "description": "Uploaded file: filename",
+          "created_by": "user_id",
+          "created_at": "timestamp",
+          "updated_at": "timestamp"
+        }
+      ]
+    }
+    ```
+
+#### Remove File from Batch
+
+- **DELETE** `/content/batch/{batch_id}/files/{file_id}`
+  - Remove a file from a batch
+  - Response:
+    ```json
+    {
+      "batch_id": "uuid",
+      "remaining_files": [
+        {
+          "id": "uuid",
+          "title": "filename",
+          "content_type": "FILE",
+          "content": "base64_content",
+          "meta": {
+            "filename": "original_filename",
+            "content_type": "mime_type",
+            "size": 1234,
+            "batch_id": "uuid"
+          },
+          "description": "Uploaded file: filename",
+          "created_by": "user_id",
+          "created_at": "timestamp",
+          "updated_at": "timestamp"
+        }
+      ]
+    }
+    ```
 
-### Get YouTube Metadata
+---
 
-- **URL**: `/content/youtube-metadata`
-- **Method**: `GET`
-- **Auth Required**: No
-- **Query Parameters**:
-  - `video_url`: YouTube video URL
-- **Response**:
-  ```json
-  {
-    "title": "string",
-    "video_url": "string",
-    "duration": "integer",
-    "description": "string"
-  }
-  ```
-- **Error Responses**:
-  - `400 Bad Request`: Invalid video URL
+## Course Management
 
-### Get Combined Content
+### Create Course
 
-- **URL**: `/content/combined`
-- **Method**: `GET`
-- **Auth Required**: Yes
-- **Response**:
-  ```json
-  {
-    "items": [
-      {
-        "id": "string",
-        "title": "string"
-      }
-    ]
-  }
-  ```
-- **Error Responses**:
-  - `401 Unauthorized`: Not authenticated
+- **POST** `/courses/`
+  - Request Body:
+    ```json
+    {
+      "title": "string",
+      "description": "string (optional)"
+    }
+    ```
+  - Response: Course object
 
-## Learning Path Endpoints
+### Get Course
 
-- **Base Path**: `/learning-paths`
+- **GET** `/courses/{course_id}`
+  - Response: Course object
 
-### Create Learning Path
+### List Courses
 
-- **POST** `/learning-paths/`
+- **GET** `/courses/`
+  - Response: List of Course objects
 
-### List Learning Paths
+### Update Course
 
-- **GET** `/learning-paths/`
+- **PUT** `/courses/{course_id}`
+  - Request Body:
+    ```json
+    {
+      "title": "string (optional)",
+      "description": "string (optional)"
+    }
+    ```
+  - Response: Updated Course object
 
-### List My Learning Paths
+### Delete Course
 
-- **GET** `/learning-paths/my`
+- **DELETE** `/courses/{course_id}`
+  - Response: Deleted Course object
 
-### Get Learning Path by ID
+### List Course Content
 
-- **GET** `/learning-paths/{path_id}`
+- **GET** `/courses/{course_id}/contents`
+  - Response: List of Content objects
 
-### Delete Learning Path by ID
+### Add Content to Course
 
-- **DELETE** `/learning-paths/{path_id}`
+- **POST** `/courses/{course_id}/contents/{content_id}`
+  - Response: Content object (now associated with course)
 
-### Get User Progress for a Learning Path
+### Remove Content from Course
 
-- **GET** `/learning-paths/progress/{path_id}`
+- **DELETE** `/courses/{course_id}/contents/{content_id}`
+  - Response: Content object (disassociated from course)
 
-## Learning Path Step Endpoints
+### List Course Learning Paths
 
-- **Base Path**: `/learning-path-steps`
+- **GET** `/courses/{course_id}/learning-paths`
+  - Response: List of LearningPath objects
 
-### List Steps for a Learning Path
+### Add Learning Path to Course
 
-- **GET** `/learning-path-steps/{learning_path_id}/steps`
+- **POST** `/courses/{course_id}/learning-paths/{learning_path_id}`
+  - Response: LearningPath object (now associated with course)
 
-### Create Step for a Learning Path
+### Remove Learning Path from Course
 
-- **POST** `/learning-path-steps/{learning_path_id}/steps`
+- **DELETE** `/courses/{course_id}/learning-paths/{learning_path_id}`
+  - Response: LearningPath object (disassociated from course)
 
-### Update Step for a Learning Path
+---
 
-- **PUT** `/learning-path-steps/{learning_path_id}/steps/{step_id}`
-
-### Delete Step for a Learning Path
-
-- **DELETE** `/learning-path-steps/{learning_path_id}/steps/{step_id}`
-
-### Reorder Steps
-
-- **POST** `/learning-path-steps/{learning_path_id}/steps/reorder`
-
-## Progress Endpoints
-
-- **Base Path**: `/progress`
-
-### Record Progress
-
-- **POST** `/progress/record`
-
-### Get User Progress
-
-- **GET** `/progress/user/{user_id}`
-
-### Get Progress for a Learning Path
-
-- **GET** `/progress/learning-path/{learning_path_id}`
-
-### Get Progress Analytics
-
-- **GET** `/progress/analytics`
-
-## Assessment Endpoints
-
-- **Base Path**: `/assessment`
-
-### Create Quiz
-
-- **POST** `/assessment/quizzes`
-
-### List Quizzes
-
-- **GET** `/assessment/quizzes`
-
-### Get Quiz by ID
-
-- **GET** `/assessment/quizzes/{quiz_id}`
-
-### Update Quiz
-
-- **PUT** `/assessment/quizzes/{quiz_id}`
-
-### Delete Quiz
-
-- **DELETE** `/assessment/quizzes/{quiz_id}`
-
-### List Flashcards
-
-- **GET** `/assessment/flashcards`
-
-### Create Flashcard
-
-- **POST** `/assessment/flashcards`
-
-### Update Flashcard
-
-- **PUT** `/assessment/flashcards/{flashcard_id}`
-
-### Delete Flashcard
-
-- **DELETE** `/assessment/flashcards/{flashcard_id}`
-
-### Create Exam
-
-- **POST** `/assessment/exams`
-
-### List Exams
-
-- **GET** `/assessment/exams`
-
-### Get Exam by ID
-
-- **GET** `/assessment/exams/{exam_id}`
-
-### Update Exam
-
-- **PUT** `/assessment/exams/{exam_id}`
-
-### Delete Exam
-
-- **DELETE** `/assessment/exams/{exam_id}`
-
-**All endpoints requiring authentication expect:**
-
-- `Authorization: Bearer <token>` header
-
-**All IDs are UUID strings unless otherwise noted.**
-
-**Request/response schemas match the Pydantic models in the codebase.**
+All endpoints require authentication. See the main API documentation for authentication and error response details.

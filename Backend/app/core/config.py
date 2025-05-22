@@ -20,7 +20,7 @@ class Settings(BaseModel):
     PROJECT_NAME: str = "EduAssist"
     
     # Database Configuration (SQLite only)
-    SQLITE_URL: str = os.getenv("SQLITE_URL", "sqlite:///./eduassist.db")
+    SQLITE_URL: str = os.getenv("SQLITE_URL", "sqlite:///Backend/eduassist.db")
     SQLALCHEMY_DATABASE_URI: str = SQLITE_URL
     DATABASE_URL: str = SQLITE_URL
     
@@ -50,4 +50,4 @@ class Settings(BaseModel):
         case_sensitive = True
         env_file = ".env"
 
-settings = Settings() 
+settings = Settings()

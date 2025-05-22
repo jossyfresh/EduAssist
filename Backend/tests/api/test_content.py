@@ -152,10 +152,9 @@ def test_get_combined_content(db: Session, test_headers):
 def test_upload_file(db: Session, test_headers):
     # Create a test file
     test_file_content = b"Test file content"
-    files = {
-        "file": ("test.txt", test_file_content, "text/plain")
-    }
-    
+    files = [
+        ("files", ("test.txt", test_file_content, "text/plain"))
+    ]
     response = client.post(
         "/api/v1/content/upload",
         files=files,
@@ -163,5 +162,6 @@ def test_upload_file(db: Session, test_headers):
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["content_type"] == "file"
-    assert "content" in data 
+    assert "batch_id" in data
+    assert "files" in data
+    assert data["files"][0]["title"] == "test.txt"

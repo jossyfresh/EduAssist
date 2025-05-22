@@ -104,6 +104,8 @@ class LearningPath(Base):
     difficulty_level = Column(String, nullable=False)
     estimated_duration = Column(Integer, nullable=False)
     tags = Column(JSON, default=lambda: [])
+    course_id = Column(String, ForeignKey("courses.id"), nullable=True)
+    course = relationship("Course", back_populates="learning_paths")
 
     # Relationships
-    steps = relationship("LearningPathStep", back_populates="learning_path", cascade="all, delete-orphan") 
+    steps = relationship("LearningPathStep", back_populates="learning_path", cascade="all, delete-orphan")
