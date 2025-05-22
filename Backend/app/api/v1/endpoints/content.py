@@ -28,18 +28,31 @@ async def create_text_content(
 @router.post("/video", response_model=Content)
 async def create_video_content(
     video_url: str = Body(..., embed=True),
+    course_id: Optional[str] = Body(None, embed=True),
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    """Create new video content from a YouTube URL."""
-    # Fetch YouTube metadata if needed
+    """Create new video content from a YouTube URL, extract transcript, and associate with course if provided."""
+    # Extract transcript and metadata
+    transcript_data = await content_generator.extract_youtube_transcript(video_url)
     meta = {"video_url": video_url}
+    if "transcript" in transcript_data:
+        meta["transcript"] = transcript_data["transcript"]
+    if "title" in transcript_data:
+        meta["youtube_title"] = transcript_data["title"]
+    if "description" in transcript_data:
+        meta["youtube_description"] = transcript_data["description"]
+    if "duration" in transcript_data:
+        meta["duration"] = transcript_data["duration"]
+    if "thumbnail" in transcript_data:
+        meta["thumbnail"] = transcript_data["thumbnail"]
     content_in = ContentCreate(
-        title="YouTube Video",
+        title=meta.get("youtube_title", "YouTube Video"),
         content_type=ContentType.VIDEO,
         content=video_url,
         meta=meta,
-        description=None
+        description=meta.get("youtube_description"),
+        course_id=course_id
     )
     content = crud_content.create_video(db=db, obj_in=content_in, user_id=current_user.id)
     return Content.from_orm(content)
@@ -273,5 +286,51 @@ async def remove_file_from_batch(
             "batch_id": batch_id,
             "remaining_files": [Content.from_orm(f) for f in remaining_files]
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generate-contextual", response_model=ContentGeneratorResponse)
+async def generate_contextual_content(
+    course_id: Optional[str] = Body(None),
+    learning_path_id: Optional[str] = Body(None),
+    content_type: str = Body(...),
+    provider: str = Body("openai"),
+    extra_parameters: Optional[Dict[str, Any]] = Body(default_factory=dict),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """Generate content (quiz, notes, flashcards, etc.) using all course-related context (transcripts, files, text, etc.)."""
+    if not course_id and not learning_path_id:
+        raise HTTPException(status_code=400, detail="Must provide course_id or learning_path_id.")
+
+    # Aggregate all related content for the course or learning path
+    query = db.query(ContentModel)
+    if course_id:
+        query = query.filter(ContentModel.course_id == course_id)
+    # Optionally, aggregate by learning_path_id if needed (not shown here)
+    contents = query.all()
+
+    # Gather context: transcripts, text, files, etc.
+    context_parts = []
+    for c in contents:
+        if c.content_type == ContentType.TEXT:
+            context_parts.append(c.content)
+        elif c.content_type == ContentType.VIDEO:
+            transcript = c.meta.get("transcript") if c.meta else None
+            if transcript:
+                context_parts.append(transcript)
+        elif c.content_type == ContentType.FILE:
+            # Optionally decode and process files (e.g., PDFs)
+            pass  # Extend as needed
+    context = "\n\n".join(context_parts)
+
+    # Prepare parameters for the AI generator
+    parameters = {"context": context}
+    parameters.update(extra_parameters or {})
+
+    # Call the AI generator
+    try:
+        response = await content_generator.generate_content(content_type, parameters, provider)
+        return ContentGeneratorResponse(content=response["content"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -138,24 +138,7 @@
     ```json
     {
       "batch_id": "uuid",
-      "files": [
-        {
-          "id": "uuid",
-          "title": "filename",
-          "content_type": "FILE",
-          "content": "base64_content",
-          "meta": {
-            "filename": "original_filename",
-            "content_type": "mime_type",
-            "size": 1234,
-            "batch_id": "uuid"
-          },
-          "description": "Uploaded file: filename",
-          "created_by": "user_id",
-          "created_at": "timestamp",
-          "updated_at": "timestamp"
-        }
-      ]
+      "files": [ ...Content objects... ]
     }
     ```
 
@@ -168,24 +151,7 @@
     ```json
     {
       "batch_id": "uuid",
-      "added_files": [
-        {
-          "id": "uuid",
-          "title": "filename",
-          "content_type": "FILE",
-          "content": "base64_content",
-          "meta": {
-            "filename": "original_filename",
-            "content_type": "mime_type",
-            "size": 1234,
-            "batch_id": "uuid"
-          },
-          "description": "Uploaded file: filename",
-          "created_by": "user_id",
-          "created_at": "timestamp",
-          "updated_at": "timestamp"
-        }
-      ]
+      "added_files": [ ...Content objects... ]
     }
     ```
 
@@ -197,24 +163,81 @@
     ```json
     {
       "batch_id": "uuid",
-      "remaining_files": [
-        {
-          "id": "uuid",
-          "title": "filename",
-          "content_type": "FILE",
-          "content": "base64_content",
-          "meta": {
-            "filename": "original_filename",
-            "content_type": "mime_type",
-            "size": 1234,
-            "batch_id": "uuid"
-          },
-          "description": "Uploaded file: filename",
-          "created_by": "user_id",
-          "created_at": "timestamp",
-          "updated_at": "timestamp"
-        }
-      ]
+      "remaining_files": [ ...Content objects... ]
+    }
+    ```
+
+### Create YouTube Video Content (with Transcript Extraction)
+
+- **POST** `/content/video`
+  - Create new video content from a YouTube URL. Extracts transcript and associates with a course if provided.
+  - Request Body:
+    ```json
+    {
+      "video_url": "https://youtube.com/watch?v=...",
+      "course_id": "uuid (optional)"
+    }
+    ```
+  - Response:
+    ```json
+    {
+      "id": "uuid",
+      "title": "YouTube Video Title",
+      "content_type": "VIDEO",
+      "content": "https://youtube.com/watch?v=...",
+      "meta": {
+        "video_url": "...",
+        "transcript": "...",
+        "youtube_title": "...",
+        "youtube_description": "...",
+        "duration": "...",
+        "thumbnail": "..."
+      },
+      "description": "YouTube video description",
+      "created_by": "user_id",
+      "created_at": "timestamp",
+      "updated_at": "timestamp",
+      "course_id": "uuid (if provided)"
+    }
+    ```
+
+### Generate Content Using AI
+
+- **POST** `/content/generate`
+  - Generate content (quiz, summary, flashcard, etc.) using AI, with a custom prompt and parameters.
+  - Request Body:
+    ```json
+    {
+      "content_type": "quiz|summary|flashcard|youtube_suggestions",
+      "parameters": { "context": "string", ... },
+      "provider": "openai|gemini"
+    }
+    ```
+  - Response:
+    ```json
+    {
+      "content": "...generated content..."
+    }
+    ```
+
+### Generate Context-Aware Content (Aggregates All Course Context)
+
+- **POST** `/content/generate-contextual`
+  - Generate content (quiz, notes, flashcards, etc.) using all course-related context (transcripts, files, text, etc.).
+  - Request Body:
+    ```json
+    {
+      "course_id": "uuid (optional)",
+      "learning_path_id": "uuid (optional)",
+      "content_type": "quiz|summary|flashcard|notes|...",
+      "provider": "openai|gemini (default: openai)",
+      "extra_parameters": { ... } // Optional, merged into AI prompt
+    }
+    ```
+  - Response:
+    ```json
+    {
+      "content": "...generated content..."
     }
     ```
 
@@ -290,6 +313,121 @@
 
 - **DELETE** `/courses/{course_id}/learning-paths/{learning_path_id}`
   - Response: LearningPath object (disassociated from course)
+
+---
+
+## Learning Path Management
+
+### Create Learning Path
+
+- **POST** `/learning-paths/`
+  - Request Body:
+    ```json
+    {
+      "title": "string",
+      "description": "string (optional)",
+      "is_public": true,
+      "difficulty_level": "string (optional)",
+      "estimated_duration": 120,
+      "tags": ["string", ...]
+    }
+    ```
+  - Response: LearningPathInDB object
+
+### List All Learning Paths (for current user)
+
+- **GET** `/learning-paths/`
+  - Response: List of LearningPathInDB objects
+
+### List My Learning Paths
+
+- **GET** `/learning-paths/my`
+  - Response: List of LearningPathInDB objects
+
+### List Public Learning Paths
+
+- **GET** `/learning-paths/public`
+  - Response: List of LearningPathInDB objects
+
+### Get Learning Path by ID
+
+- **GET** `/learning-paths/{path_id}`
+  - Response: LearningPathInDB object
+
+### Update Learning Path
+
+- **PUT** `/learning-paths/{path_id}`
+  - Request Body:
+    ```json
+    {
+      "title": "string (optional)",
+      "description": "string (optional)",
+      "is_public": true,
+      "difficulty_level": "string (optional)",
+      "estimated_duration": 120,
+      "tags": ["string", ...]
+    }
+    ```
+  - Response: Updated LearningPathInDB object
+
+### Delete Learning Path
+
+- **DELETE** `/learning-paths/{path_id}`
+  - Response: `{ "status": "success" }`
+
+### Add Step to Learning Path
+
+- **POST** `/learning-paths/{path_id}/steps`
+  - Request Body:
+    ```json
+    {
+      "title": "string",
+      "description": "string (optional)",
+      "content_type": "text|video|file|other",
+      "content": "string (optional)",
+      "order": 1
+    }
+    ```
+  - Response: LearningPathStepInDB object
+
+### List Steps in Learning Path
+
+- **GET** `/learning-paths/{path_id}/steps`
+  - Response: List of LearningPathStepInDB objects
+
+### Create Content Item
+
+- **POST** `/learning-paths/content`
+  - Request Body:
+    ```json
+    {
+      "title": "string",
+      "description": "string (optional)",
+      "content_type": "text|video|file|other",
+      "content": "string"
+    }
+    ```
+  - Response: Content object
+
+### Create or Update User Progress
+
+- **POST** `/learning-paths/progress`
+  - Request Body:
+    ```json
+    {
+      "user_id": "uuid",
+      "learning_path_id": "uuid",
+      "step_id": 1,
+      "status": "completed|in_progress|not_started",
+      "score": 100
+    }
+    ```
+  - Response: UserProgressInDB object
+
+### Get User Progress for a Learning Path
+
+- **GET** `/learning-paths/progress/{path_id}`
+  - Response: List of UserProgressInDB objects
 
 ---
 
