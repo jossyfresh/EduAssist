@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 # Set test environment variables
 os.environ["TESTING"] = "True"
-os.environ["SQLITE_URL"] = "sqlite:///Backend/test.db"
+os.environ["SQLITE_URL"] = "sqlite:///test.db"
 os.environ["SECRET_KEY"] = "test-secret-key"
 os.environ["OPENAI_API_KEY"] = "test-openai-key"
 os.environ["GEMINI_API_KEY"] = "test-gemini-key"

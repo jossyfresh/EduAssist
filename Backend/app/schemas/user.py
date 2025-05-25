@@ -45,7 +45,7 @@ class UserUpdate(UserBase):
     password: Optional[str] = None
 
 class UserInDBBase(UserBase):
-    id: int
+    id: str  # changed from int to str to match DB model
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -59,4 +59,4 @@ class User(UserInDBBase):
         from_attributes = True
 
 class UserInDB(UserInDBBase):
-    hashed_password: str 
+    hashed_password: str
