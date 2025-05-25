@@ -439,6 +439,23 @@
 - **GET** `/learning-paths/progress/{path_id}`
   - Response: List of UserProgressInDB objects
 
+### Generate Learning Path Outline
+
+- **POST** `/learning-paths/generate-outline`
+  - Request Body (query params):
+    - `course_id`: string (required)
+  - Response:
+    ```json
+    {
+      "materialTitle": "string",
+      "materialDescription": "string",
+      "chapters": [
+        { "title": "string", "description": "string" },
+        ...
+      ]
+    }
+    ```
+
 ---
 
 **Note:**

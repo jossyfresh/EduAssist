@@ -13,7 +13,7 @@ class LearningPathStepBase(BaseModel):
     content: Optional[str] = None
 
 class LearningPathStepCreate(LearningPathStepBase):
-    learning_path_id: str
+    learning_path_id: Optional[str] = None
 
     class Config:
         schema_extra = {
@@ -35,7 +35,7 @@ class LearningPathBase(BaseModel):
     tags: List[str] = Field(default_factory=list)
 
 class LearningPathCreate(LearningPathBase):
-    created_by: str
+    created_by: Optional[str] = None
     steps: Optional[List["LearningPathStepCreate"]] = None
 
     class Config:
@@ -58,10 +58,11 @@ class LearningPathInDB(LearningPathBase):
     id: str
     created_by: str
     created_at: datetime
-    updated_at: datetime
-    steps: Optional[List["LearningPathStepInDB"]] = None
+    updated_at: Optional[datetime] = None
+    steps: Optional[List["LearningPathStepInDB"]] = Field(default_factory=list)
 
     class Config:
+        orm_mode = True
         from_attributes = True
 
 class LearningPathStepUpdate(LearningPathStepBase):
@@ -87,9 +88,10 @@ class LearningPathStepInDB(LearningPathStepBase):
     id: str
     learning_path_id: str
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
+        orm_mode = True
         from_attributes = True
 
 class LearningPathStep(LearningPathStepBase):

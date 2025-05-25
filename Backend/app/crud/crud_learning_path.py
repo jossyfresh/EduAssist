@@ -25,18 +25,35 @@ class CRUDLearningPath(CRUDBase[LearningPath, LearningPathCreate, LearningPathUp
     def create(
         self, db: Session, obj_in: LearningPathCreate, created_by: str
     ) -> LearningPath:
-        obj_in_data = obj_in.dict(exclude={"steps"})
-        db_obj = LearningPath(**obj_in_data, created_by=created_by)
+        print(f"[DEBUG] CRUD create called with obj_in: {obj_in.dict()}")
+        print(f"[DEBUG] created_by parameter: {created_by}")
+        
+        obj_in_data = obj_in.dict(exclude={"steps", "created_by"})
+        print(f"[DEBUG] obj_in_data after exclude steps and created_by: {obj_in_data}")
+        
+        try:
+            db_obj = LearningPath(**obj_in_data, created_by=created_by)
+            print(f"[DEBUG] Created db_obj: {db_obj.__dict__}")
+        except Exception as e:
+            print(f"[ERROR] Failed to create LearningPath object: {str(e)}")
+            print(f"[ERROR] Error type: {type(e)}")
+            raise
+            
         db.add(db_obj)
         db.flush()  # Get db_obj.id
+        print(f"[DEBUG] After flush - db_obj.id: {db_obj.id}")
+        
         # Create steps if provided
         steps = obj_in.steps or []
         for step_data in steps:
             step_dict = step_data.dict()
             step_dict["learning_path_id"] = db_obj.id
+            print(f"[DEBUG] Creating step with data: {step_dict}")
             db.add(LearningPathStep(**step_dict))
+            
         db.commit()
         db.refresh(db_obj)
+        print(f"[DEBUG] Final db_obj after commit and refresh: {db_obj.__dict__}")
         return db_obj
 
     def get_multi_by_creator(
@@ -86,6 +103,17 @@ class CRUDLearningPath(CRUDBase[LearningPath, LearningPathCreate, LearningPathUp
         return db.query(self.model).filter(LearningPath.is_public == True).all()
 
 class CRUDLearningPathStep(CRUDBase[LearningPathStep, LearningPathStepCreate, LearningPathStepUpdate]):
+    def create(
+        self, db: Session, *, obj_in: LearningPathStepCreate, learning_path_id: str
+    ) -> LearningPathStep:
+        obj_in_data = obj_in.dict()
+        obj_in_data["learning_path_id"] = learning_path_id
+        db_obj = LearningPathStep(**obj_in_data)
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
+
     def get_by_learning_path(self, db: Session, learning_path_id: str) -> List[LearningPathStep]:
         """Get all steps for a learning path."""
         return (

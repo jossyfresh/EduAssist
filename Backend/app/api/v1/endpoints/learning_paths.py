@@ -28,8 +28,13 @@ from app.schemas.progress import (
 )
 from app.api import deps
 from app.models.user import User
+from app.services.content_generator import ContentGenerator
+from app.models.course import Course
+from app.models.learning_path import LearningPath
+from app.models.content import ContentType
 
 router = APIRouter()
+content_generator = ContentGenerator()
 
 @router.post("/", response_model=LearningPathInDB, responses={
     200: {"description": "Successfully created learning path", "model": LearningPathInDB},
@@ -119,8 +124,12 @@ async def get_my_learning_paths(
     """
     try:
         paths = crud_learning_path.get_by_user(db, user_id=str(current_user.id))
+        print(f"[DEBUG] Found {len(paths)} learning paths for user {current_user.id}")
+        for path in paths:
+            print(f"[DEBUG] Path ID: {path.id}, Title: {path.title}")
         return paths
     except Exception as e:
+        print(f"[ERROR] Failed to get learning paths: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/public", response_model=List[LearningPathInDB], responses={
@@ -401,3 +410,179 @@ async def get_user_progress(
         return progress
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/generate-outline", response_model=dict)
+async def generate_learning_path_outline(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user)
+):
+    """Generate a learning path outline for a course.
+    
+    Example response:
+    {
+        "materialTitle": "string",
+        "materialDescription": "string",
+        "progress": 0,
+        "chapters": [
+            {
+                "title": "string",
+                "description": "string",
+                "estimatedDuration": "string",
+                "keyConcepts": ["string"],
+                "resources": [
+                    {
+                        "type": "string",
+                        "title": "string",
+                        "url": "string"
+                    }
+                ]
+            }
+        ]
+    }
+    """
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    outline = content_generator.generate_learning_path_outline(course.title, course.description or "")
+    return outline
+
+@router.get("/course/{course_id}/outline", response_model=dict)
+async def get_course_learning_path_outline(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user)
+):
+    """Get the learning path outline for a course.
+    
+    Example response:
+    {
+        "materialTitle": "string",
+        "materialDescription": "string",
+        "progress": 0,
+        "chapters": [
+            {
+                "title": "string",
+                "description": "string",
+                "estimatedDuration": "string",
+                "keyConcepts": ["string"],
+                "resources": [
+                    {
+                        "type": "string",
+                        "title": "string",
+                        "url": "string"
+                    }
+                ]
+            }
+        ]
+    }
+    """
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Check if there's an existing learning path for this course
+    existing_path = db.query(LearningPath).filter(LearningPath.course_id == course_id).first()
+    if existing_path:
+        # If there's an existing path, return its outline
+        return {
+            "materialTitle": existing_path.title,
+            "materialDescription": existing_path.description,
+            "progress": 0,
+            "chapters": [
+                {
+                    "title": step.title,
+                    "description": step.description,
+                    "estimatedDuration": "1 hour",  # Default duration
+                    "keyConcepts": existing_path.tags or [],
+                    "resources": []
+                }
+                for step in existing_path.steps
+            ]
+        }
+    
+    # If no existing path, generate a new outline
+    outline = content_generator.generate_learning_path_outline(course.title, course.description or "")
+    return outline
+
+@router.post("/course/{course_id}/create-from-outline", response_model=LearningPathInDB)
+async def create_learning_path_from_outline(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user)
+) -> LearningPathInDB:
+    """Create a learning path from the generated outline for a course."""
+    print(f"[DEBUG] Starting create_learning_path_from_outline for course_id: {course_id}")
+    print(f"[DEBUG] Current user ID: {current_user.id}")
+    
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    print(f"[DEBUG] Found course: {course.title}")
+    
+    # Check if there's already a learning path for this course
+    existing_path = db.query(LearningPath).filter(LearningPath.course_id == course_id).first()
+    if existing_path:
+        raise HTTPException(status_code=400, detail="Learning path already exists for this course")
+    
+    # Generate the outline
+    outline = content_generator.generate_learning_path_outline(course.title, course.description or "")
+    print(f"[DEBUG] Generated outline: {outline}")
+    
+    # Create the learning path first
+    learning_path_in = LearningPathCreate(
+        title=outline["materialTitle"],
+        description=outline["materialDescription"],
+        is_public=True,
+        difficulty_level="beginner",
+        estimated_duration=int(sum(float(chapter["estimatedDuration"].split()[0]) * 60 for chapter in outline["chapters"])),
+        tags=[concept for chapter in outline["chapters"] for concept in chapter["keyConcepts"]],
+        course_id=course_id
+    )
+    print(f"[DEBUG] Created LearningPathCreate object: {learning_path_in.dict()}")
+    
+    # Create the learning path in the database
+    try:
+        created_path = crud_learning_path.create(db, obj_in=learning_path_in, created_by=str(current_user.id))
+        print(f"[DEBUG] Successfully created learning path with ID: {created_path.id}")
+    except Exception as e:
+        print(f"[ERROR] Failed to create learning path: {str(e)}")
+        print(f"[ERROR] Error type: {type(e)}")
+        raise
+    
+    # Now create the steps
+    for idx, chapter in enumerate(outline["chapters"]):
+        step_in = LearningPathStepCreate(
+            title=chapter["title"],
+            description=chapter["description"],
+            content_type=ContentType.TEXT,
+            content=chapter["description"],
+            order=idx + 1
+        )
+        print(f"[DEBUG] Creating step {idx + 1}: {step_in.dict()}")
+        try:
+            crud_learning_path_step.create(db, obj_in=step_in, learning_path_id=str(created_path.id))
+        except Exception as e:
+            print(f"[ERROR] Failed to create step {idx + 1}: {str(e)}")
+            print(f"[ERROR] Error type: {type(e)}")
+            raise
+    
+    # Refresh the created path to include steps
+    db.refresh(created_path)
+    print(f"[DEBUG] Final learning path: {created_path.__dict__}")
+    
+    # Convert to LearningPathInDB model
+    return LearningPathInDB.from_orm(created_path)
+
+@router.get("/course/{course_id}", response_model=LearningPathInDB)
+async def get_learning_path_by_course(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user)
+) -> LearningPathInDB:
+    """Get the learning path for a specific course."""
+    path = db.query(LearningPath).filter(LearningPath.course_id == course_id).first()
+    if not path:
+        raise HTTPException(status_code=404, detail="Learning path not found for this course")
+    print(f"[DEBUG] Found learning path: ID={path.id}, Title={path.title}")
+    return path
