@@ -5,8 +5,10 @@ from app.api import deps
 from app.schemas.course import Course, CourseCreate, CourseUpdate
 from app.crud import crud_course
 from app.models.user import User
+from app.services.content_generator import ContentGenerator
 
 router = APIRouter()
+content_generator = ContentGenerator()
 
 @router.post("/", response_model=Course)
 def create_course(
@@ -14,7 +16,24 @@ def create_course(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    course = crud_course.create(db=db, obj_in=course_in, user_id=current_user.id)
+    # Call AI to generate title, sub_title, description
+    prompt = course_in.prompt
+    ai_prompt = f"Given the following course idea or topic, generate a catchy course title, a concise sub-title, and a detailed description. Respond as JSON: {{'title': ..., 'sub_title': ..., 'description': ...}}.\nPrompt: {prompt}"
+    ai_response = content_generator.openai_client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": ai_prompt}]
+    )
+    import json as _json
+    try:
+        ai_content = _json.loads(ai_response.choices[0].message.content)
+        title = ai_content.get("title", "Untitled Course")
+        sub_title = ai_content.get("sub_title", "")
+        description = ai_content.get("description", "")
+    except Exception:
+        title = "Untitled Course"
+        sub_title = ""
+        description = prompt
+    course = crud_course.create(db=db, obj_in=course_in, user_id=current_user.id, title=title, sub_title=sub_title, description=description)
     return course
 
 @router.get("/{course_id}", response_model=Course)

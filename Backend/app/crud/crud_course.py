@@ -9,10 +9,11 @@ def get(db: Session, id: str) -> Optional[Course]:
 def get_multi(db: Session, skip: int = 0, limit: int = 100) -> List[Course]:
     return db.query(Course).offset(skip).limit(limit).all()
 
-def create(db: Session, obj_in: CourseCreate, user_id: str) -> Course:
+def create(db: Session, obj_in: CourseCreate, user_id: str, title: str, sub_title: str, description: str) -> Course:
     db_obj = Course(
-        title=obj_in.title,
-        description=obj_in.description,
+        title=title,
+        sub_title=sub_title,
+        description=description,
         created_by=user_id
     )
     db.add(db_obj)

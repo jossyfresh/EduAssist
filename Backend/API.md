@@ -251,11 +251,21 @@
   - Request Body:
     ```json
     {
-      "title": "string",
-      "description": "string (optional)"
+      "prompt": "string (course idea or topic)"
     }
     ```
-  - Response: Course object
+  - Response:
+    ```json
+    {
+      "id": "string",
+      "title": "string (AI generated)",
+      "sub_title": "string (AI generated)",
+      "description": "string (AI generated)",
+      "created_by": "string",
+      "created_at": "datetime",
+      "updated_at": "datetime"
+    }
+    ```
 
 ### Get Course
 
@@ -431,4 +441,8 @@
 
 ---
 
-All endpoints require authentication. See the main API documentation for authentication and error response details.
+**Note:**
+
+- All endpoints require authentication. Use a valid JWT Bearer token in the `Authorization` header.
+- The request body for creating/updating a course must be a JSON object (not a list or other type).
+- If you see `"value is not a valid dict"`, make sure you are sending a JSON object, not an array or other type.

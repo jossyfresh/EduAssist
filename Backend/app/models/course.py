@@ -8,6 +8,7 @@ class Course(Base):
     __tablename__ = "courses"
     id = Column(String, primary_key=True, default=lambda: str(uuid4()))
     title = Column(String(255), nullable=False)
+    sub_title = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
