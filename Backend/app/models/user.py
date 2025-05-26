@@ -1,5 +1,6 @@
 from sqlalchemy import Boolean, Column, String, DateTime
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 import uuid
 
@@ -15,6 +16,13 @@ class User(Base):
     is_superuser = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    created_quizzes = relationship("Quiz", back_populates="creator")
+    created_flashcards = relationship("Flashcard", back_populates="creator")
+    created_exams = relationship("Exam", back_populates="creator")
+    quiz_attempts = relationship("QuizAttempt", back_populates="user")
+    exam_attempts = relationship("ExamAttempt", back_populates="user")
 
     def __repr__(self):
         return f"<User {self.email}>" 

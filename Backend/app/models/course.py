@@ -10,10 +10,15 @@ class Course(Base):
     title = Column(String(255), nullable=False)
     sub_title = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
-    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    creator_id = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     contents = relationship("Content", back_populates="course")
     learning_paths = relationship("LearningPath", back_populates="course")
+    quizzes = relationship("Quiz", back_populates="course")
+    flashcards = relationship("Flashcard", back_populates="course")
+    exams = relationship("Exam", back_populates="course")
+    assessment_progress = relationship("AssessmentProgress", back_populates="course")
+    course_progress = relationship("CourseProgress", back_populates="course")

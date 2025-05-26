@@ -24,24 +24,6 @@ def read_users(
     users = crud_user.get_multi(db, skip=skip, limit=limit)
     return users
 
-@router.post("/", response_model=UserSchema)
-def create_user(
-    *,
-    db: Session = Depends(deps.get_db),
-    user_in: UserCreate,
-    current_user: User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    Create new user.
-    """
-    user = crud_user.get_by_email(db, email=user_in.email)
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this email already exists in the system.",
-        )
-    user = crud_user.create(db, obj_in=user_in)
-    return user
 
 @router.put("/me", response_model=UserSchema)
 def update_user_me(

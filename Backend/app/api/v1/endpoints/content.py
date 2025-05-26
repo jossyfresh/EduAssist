@@ -1,187 +1,497 @@
 from typing import List, Optional, Any, Dict
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Body
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Body, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.api import deps
-from app.schemas.content import Content, ContentCreate, ContentUpdate, ContentGeneratorResponse, GenerateContentRequest
+from app.schemas.content import Content, ContentCreate, ContentUpdate, ContentGeneratorResponse, GenerateContentRequest, ContentResponse, ContentListResponse, ContentGenerateRequest, ContentBatchResponse, ContentBatchCreate, ContentBatchUpdate, ContentContextualGenerateRequest
 from app.crud.crud_content import crud_content
 from app.services.content_generator import ContentGenerator
+from app.services.content_service import ContentService
 from app.models.user import User
 from app.models.enums import ContentType
 from app.models.course import Course as CourseModel
 from app.models.content import Content as ContentModel
 from uuid import uuid4
 import base64
+import json
+from datetime import datetime
 
 router = APIRouter()
 content_generator = ContentGenerator()
+content_service = ContentService()
 
-@router.post("/text", response_model=Content)
+@router.post("/text", 
+    response_model=ContentResponse,
+    summary="Create Text Content",
+    description="""
+    Create new text content with the following features:
+    - Supports markdown formatting
+    - Can be associated with a course
+    - Includes metadata and description
+    
+    Example Input:
+    ```json
+    {
+        "title": "Introduction to Python",
+        "content": "# Python Basics\n\nPython is a high-level programming language...",
+        "content_type": "TEXT",
+        "description": "A beginner's guide to Python programming",
+        "course_id": "optional-course-id",
+        "meta": {
+            "tags": ["python", "programming"],
+            "difficulty": "beginner"
+        }
+    }
+    ```
+    
+    Example Output:
+    ```json
+    {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "title": "Introduction to Python",
+        "content": "# Python Basics\n\nPython is a high-level programming language...",
+        "content_type": "TEXT",
+        "description": "A beginner's guide to Python programming",
+        "created_by": "user-id",
+        "created_at": "2024-03-20T10:00:00Z",
+        "updated_at": "2024-03-20T10:00:00Z",
+        "course_id": "optional-course-id",
+        "meta": {
+            "tags": ["python", "programming"],
+            "difficulty": "beginner"
+        }
+    }
+    ```
+    """
+)
 async def create_text_content(
     content: ContentCreate,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
     """Create new text content."""
-    content = crud_content.create_text(db=db, obj_in=content, user_id=current_user.id)
-    return Content.from_orm(content)
+    return await content_service.create_content(content, current_user.id)
 
-@router.post("/video", response_model=Content)
+@router.post("/video", 
+    response_model=ContentResponse,
+    summary="Create Video Content",
+    description="""
+    Create new video content from a YouTube URL with the following features:
+    - Automatically extracts video transcript
+    - Fetches video metadata (title, description, duration, thumbnail)
+    - Can be associated with a course
+    
+    Example Input:
+    ```json
+    {
+        "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "course_id": "optional-course-id"
+    }
+    ```
+    
+    Example Output:
+    ```json
+    {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "title": "Never Gonna Give You Up",
+        "content": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "content_type": "VIDEO",
+        "description": "Official music video for 'Never Gonna Give You Up' by Rick Astley",
+        "created_by": "user-id",
+        "created_at": "2024-03-20T10:00:00Z",
+        "updated_at": "2024-03-20T10:00:00Z",
+        "course_id": "optional-course-id",
+        "meta": {
+            "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "transcript": "Never gonna give you up...",
+            "youtube_title": "Never Gonna Give You Up",
+            "youtube_description": "Official music video...",
+            "duration": "3:32",
+            "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg"
+        }
+    }
+    ```
+    """
+)
 async def create_video_content(
-    video_url: str = Body(..., embed=True),
-    course_id: Optional[str] = Body(None, embed=True),
+    youtube_url: str = Form(...),
+    title: str = Form(...),
+    course_id: Optional[str] = Form(None),
+    metadata: Optional[str] = Form(None),
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    """Create new video content from a YouTube URL, extract transcript, and associate with course if provided."""
-    # Extract transcript and metadata
-    transcript_data = await content_generator.extract_youtube_transcript(video_url)
-    meta = {"video_url": video_url}
-    if "transcript" in transcript_data:
-        meta["transcript"] = transcript_data["transcript"]
-    if "title" in transcript_data:
-        meta["youtube_title"] = transcript_data["title"]
-    if "description" in transcript_data:
-        meta["youtube_description"] = transcript_data["description"]
-    if "duration" in transcript_data:
-        meta["duration"] = transcript_data["duration"]
-    if "thumbnail" in transcript_data:
-        meta["thumbnail"] = transcript_data["thumbnail"]
-    content_in = ContentCreate(
-        title=meta.get("youtube_title", "YouTube Video"),
-        content_type=ContentType.VIDEO,
-        content=video_url,
-        meta=meta,
-        description=meta.get("youtube_description"),
-        course_id=course_id
-    )
-    content = crud_content.create_video(db=db, obj_in=content_in, user_id=current_user.id)
-    return Content.from_orm(content)
+    """Create new video content from a YouTube URL."""
+    try:
+        metadata_dict = json.loads(metadata) if metadata else {}
+        metadata_dict["youtube_url"] = youtube_url
+        
+        # Extract video metadata and transcript
+        video_data = await content_generator.extract_youtube_transcript(youtube_url)
+        
+        content = ContentCreate(
+            title=title,
+            content=video_data.get("transcript", ""),
+            content_type="VIDEO",
+            course_id=course_id,
+            meta=metadata_dict
+        )
+        
+        return await content_service.create_content(content, current_user.id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/youtube-metadata")
-async def get_youtube_metadata(video_url: str):
-    # Dummy implementation for test
-    return {
-        "title": "Test Video", 
-        "video_url": video_url, 
-        "duration": 123,
-        "description": "Test video description"
+@router.get("/{content_id}", 
+    response_model=ContentResponse,
+    summary="Get Content by ID",
+    description="""
+    Retrieve content by its unique ID.
+    
+    Example Output:
+    ```json
+    {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "title": "Introduction to Python",
+        "content": "# Python Basics\n\nPython is a high-level programming language...",
+        "content_type": "TEXT",
+        "description": "A beginner's guide to Python programming",
+        "created_by": "user-id",
+        "created_at": "2024-03-20T10:00:00Z",
+        "updated_at": "2024-03-20T10:00:00Z",
+        "course_id": "optional-course-id",
+        "meta": {
+            "tags": ["python", "programming"],
+            "difficulty": "beginner"
+        }
     }
-
-@router.get("/combined")
-async def get_combined_content():
-    # Dummy implementation for test
-    return {"items": [{"id": "1", "title": "Combined Content"}]}
-
-@router.get("/{content_id}", response_model=Content)
+    ```
+    """
+)
 async def get_content(
     content_id: str,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
     """Get content by ID."""
-    content = crud_content.get(db=db, id=content_id)
-    if not content:
-        raise HTTPException(status_code=404, detail="Content not found")
-    return Content.from_orm(content)
+    return await content_service.get_content(content_id)
 
-@router.put("/{content_id}", response_model=Content)
+@router.put("/{content_id}", 
+    response_model=ContentResponse,
+    summary="Update Content",
+    description="""
+    Update existing content. Only the content owner can update it.
+    
+    Example Input:
+    ```json
+    {
+        "title": "Updated Python Introduction",
+        "content": "# Updated Python Basics\n\nPython is a versatile programming language...",
+        "description": "An updated beginner's guide to Python programming",
+        "meta": {
+            "tags": ["python", "programming", "updated"],
+            "difficulty": "beginner",
+            "last_updated": "2024-03-20"
+        }
+    }
+    ```
+    
+    Example Output:
+    ```json
+    {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "title": "Updated Python Introduction",
+        "content": "# Updated Python Basics\n\nPython is a versatile programming language...",
+        "content_type": "TEXT",
+        "description": "An updated beginner's guide to Python programming",
+        "created_by": "user-id",
+        "created_at": "2024-03-20T10:00:00Z",
+        "updated_at": "2024-03-20T11:00:00Z",
+        "course_id": "optional-course-id",
+        "meta": {
+            "tags": ["python", "programming", "updated"],
+            "difficulty": "beginner",
+            "last_updated": "2024-03-20"
+        }
+    }
+    ```
+    """
+)
 async def update_content(
     content_id: str,
-    content_in: ContentUpdate,
+    content: ContentUpdate,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
     """Update content."""
-    content = crud_content.get(db=db, id=content_id)
-    if not content:
-        raise HTTPException(status_code=404, detail="Content not found")
-    # Only allow the owner to update
-    if content.created_by != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this content")
-    updated = crud_content.update(db=db, db_obj=content, obj_in=content_in)
-    return Content.from_orm(updated)
+    return await content_service.update_content(content_id, content)
 
-@router.delete("/{content_id}", response_model=Content)
+@router.delete("/{content_id}", 
+    response_model=ContentResponse,
+    summary="Delete Content",
+    description="""
+    Delete content by ID. Only the content owner can delete it.
+    
+    Example Output:
+    ```json
+    {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "title": "Introduction to Python",
+        "content": "# Python Basics\n\nPython is a high-level programming language...",
+        "content_type": "TEXT",
+        "description": "A beginner's guide to Python programming",
+        "created_by": "user-id",
+        "created_at": "2024-03-20T10:00:00Z",
+        "updated_at": "2024-03-20T10:00:00Z",
+        "course_id": "optional-course-id",
+        "meta": {
+            "tags": ["python", "programming"],
+            "difficulty": "beginner"
+        }
+    }
+    ```
+    """
+)
 async def delete_content(
     content_id: str,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
     """Delete content."""
-    content = crud_content.get(db=db, id=content_id)
-    if not content:
-        raise HTTPException(status_code=404, detail="Content not found")
-    content = crud_content.remove(db=db, id=content_id)
-    return Content.from_orm(content)
+    return await content_service.delete_content(content_id)
 
-@router.post("/generate", response_model=ContentGeneratorResponse)
+@router.post("/generate", response_model=ContentResponse)
 async def generate_content(
-    request: GenerateContentRequest,
-    db: Session = Depends(deps.get_db),
+    request: ContentGenerateRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(deps.get_current_user)
-):
-    """Generate content using AI."""
-    try:
-        # Validate provider
-        valid_providers = {"openai", "gemini"}
-        if request.provider not in valid_providers:
-            raise HTTPException(status_code=400, detail=f"Unsupported provider: {request.provider}")
-        # Validate content_type
-        valid_content_types = {"quiz", "summary", "flashcard", "youtube_suggestions"}
-        if request.content_type not in valid_content_types:
-            raise HTTPException(status_code=400, detail=f"Unsupported content type: {request.content_type}")
-        response = await content_generator.generate_content(
-            request.content_type,
-            request.parameters,
-            request.provider
-        )
-        return ContentGeneratorResponse(content=response["content"])
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/upload", response_model=Dict[str, Any])
-async def upload_files(
-    files: List[UploadFile] = File(...),
-    db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user)
-):
-    try:
-        uploaded_contents = []
-        batch_id = str(uuid4())  # Generate a single batch ID for all files
-        
-        for file in files:
-            content = await file.read()
-            # Store binary content as base64 string
-            content_b64 = base64.b64encode(content).decode('utf-8')
-            
-            # Create content object
-            content_obj = ContentCreate(
-                title=file.filename,
-                content_type=ContentType.FILE,
-                content=content_b64,
-                meta={
-                    "filename": file.filename,
-                    "content_type": file.content_type,
-                    "size": len(content),
-                    "batch_id": batch_id  # Add batch_id to metadata
-                },
-                description=f"Uploaded file: {file.filename}"
-            )
-            
-            # Save to database
-            content = crud_content.create_file(db=db, obj_in=content_obj, user_id=current_user.id)
-            uploaded_contents.append(Content.from_orm(content))
-            
-        return {
-            "batch_id": batch_id,
-            "files": uploaded_contents
+) -> Any:
+    """
+    Generate AI content (quiz, summary, flashcards, etc.) and store it in the database.
+    
+    Request Body Examples:
+    
+    1. Quiz Generation:
+    ```json
+    {
+        "content_type": "quiz",
+        "parameters": {
+            "topic": "Python Basics",
+            "difficulty": "beginner",
+            "num_questions": 5,
+            "question_types": ["multiple_choice", "true_false"]
         }
+    }
+    ```
+    
+    2. Summary Generation:
+    ```json
+    {
+        "content_type": "summary",
+        "parameters": {
+            "text": "Your text to summarize here...",
+            "max_length": 200,
+            "focus_points": ["key concepts", "main arguments"]
+        }
+    }
+    ```
+    
+    3. Flashcard Generation:
+    ```json
+    {
+        "content_type": "flashcard",
+        "parameters": {
+            "topic": "Python Data Structures",
+            "num_cards": 10,
+            "difficulty": "intermediate",
+            "include_examples": true
+        }
+    }
+    ```
+    
+    4. YouTube Suggestions:
+    ```json
+    {
+        "content_type": "youtube_suggestions",
+        "parameters": {
+            "topic": "Machine Learning Basics",
+            "num_suggestions": 5,
+            "difficulty": "beginner",
+            "include_description": true
+        }
+    }
+    ```
+    
+    5. Course Content Generation:
+    ```json
+    {
+        "content_type": "course",
+        "parameters": {
+            "topic": "Web Development",
+            "level": "beginner",
+            "duration": "8 weeks",
+            "include_prerequisites": true,
+            "include_learning_objectives": true
+        }
+    }
+    ```
+    
+    6. Practice Exercises:
+    ```json
+    {
+        "content_type": "exercises",
+        "parameters": {
+            "topic": "Python Functions",
+            "difficulty": "intermediate",
+            "num_exercises": 5,
+            "include_solutions": true,
+            "include_hints": true
+        }
+    }
+    ```
+    
+    7. Code Examples:
+    ```json
+    {
+        "content_type": "code_examples",
+        "parameters": {
+            "language": "Python",
+            "concept": "Decorators",
+            "num_examples": 3,
+            "include_comments": true,
+            "include_explanations": true
+        }
+    }
+    ```
+    
+    8. Learning Path:
+    ```json
+    {
+        "content_type": "learning_path",
+        "parameters": {
+            "topic": "Data Science",
+            "level": "beginner",
+            "duration": "12 weeks",
+            "include_resources": true,
+            "include_milestones": true
+        }
+    }
+    ```
+    """
+    try:
+        # Generate content using AI
+        generated_content = await content_generator.generate_content(
+            content_type=request.content_type,
+            parameters=request.parameters,
+            provider=request.provider
+        )
+        
+        # Create content object for database storage
+        content_obj = ContentCreate(
+            title=f"Generated {request.content_type.title()}",
+            content=json.dumps(generated_content),
+            content_type=request.content_type.upper(),
+            description=f"AI-generated {request.content_type} about {request.parameters.get('topic', 'general topic')}",
+            meta={
+                "generator": request.provider,
+                "parameters": request.parameters,
+                "generated_at": datetime.utcnow().isoformat()
+            }
+        )
+        
+        # Store in database
+        stored_content = await content_service.create_content(content_obj, current_user.id)
+        
+        return stored_content
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/batch/{batch_id}", response_model=Dict[str, Any])
+@router.post("/upload", 
+    response_model=ContentResponse,
+    summary="Upload Files",
+    description="""
+    Upload multiple files with the following features:
+    - Files are stored as base64 strings
+    - Supports multiple file types
+    - Files are grouped by batch_id
+    - Includes file metadata
+    
+    Example Input:
+    ```
+    Form Data:
+    files: [file1.pdf, file2.docx]
+    ```
+    
+    Example Output:
+    ```json
+    {
+        "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+        "files": [
+            {
+                "id": "550e8400-e29b-41d4-a716-446655440001",
+                "title": "file1.pdf",
+                "content_type": "FILE",
+                "content": "base64_encoded_content",
+                "meta": {
+                    "filename": "file1.pdf",
+                    "content_type": "application/pdf",
+                    "size": 1024,
+                    "batch_id": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        ]
+    }
+    ```
+    """
+)
+async def upload_file(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    course_id: Optional[str] = Form(None),
+    metadata: Optional[str] = Form(None),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """Upload multiple files."""
+    try:
+        metadata_dict = json.loads(metadata) if metadata else {}
+        content = ContentCreate(
+            title=title,
+            content=file.filename,  # Store file path/URL
+            content_type="FILE",
+            course_id=course_id,
+            meta=metadata_dict
+        )
+        return await content_service.create_content(content, current_user.id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/batch/{batch_id}", 
+    response_model=ContentBatchResponse,
+    summary="Get Batch Files",
+    description="""
+    Retrieve all files in a batch by batch_id.
+    
+    Example Output:
+    ```json
+    {
+        "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+        "files": [
+            {
+                "id": "550e8400-e29b-41d4-a716-446655440001",
+                "title": "file1.pdf",
+                "content_type": "FILE",
+                "content": "base64_encoded_content",
+                "meta": {
+                    "filename": "file1.pdf",
+                    "content_type": "application/pdf",
+                    "size": 1024,
+                    "batch_id": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        ]
+    }
+    ```
+    """
+)
 async def get_batch_files(
     batch_id: str,
     db: Session = Depends(deps.get_db),
@@ -189,13 +499,11 @@ async def get_batch_files(
 ):
     """Get all files in a batch."""
     try:
-        # Query files to be filtered by course_id if provided
         query = db.query(ContentModel).filter(
             ContentModel.meta['batch_id'].astext == batch_id,
             ContentModel.created_by == current_user.id
         )
         
-        # Execute query and fetch results
         files = query.all()
         
         if not files:
@@ -208,7 +516,40 @@ async def get_batch_files(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/batch/{batch_id}/files", response_model=Dict[str, Any])
+@router.post("/batch/{batch_id}/files", 
+    response_model=ContentBatchResponse,
+    summary="Add Files to Batch",
+    description="""
+    Add new files to an existing batch.
+    
+    Example Input:
+    ```
+    Form Data:
+    files: [file3.pdf, file4.docx]
+    ```
+    
+    Example Output:
+    ```json
+    {
+        "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+        "added_files": [
+            {
+                "id": "550e8400-e29b-41d4-a716-446655440003",
+                "title": "file3.pdf",
+                "content_type": "FILE",
+                "content": "base64_encoded_content",
+                "meta": {
+                    "filename": "file3.pdf",
+                    "content_type": "application/pdf",
+                    "size": 1024,
+                    "batch_id": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        ]
+    }
+    ```
+    """
+)
 async def add_files_to_batch(
     batch_id: str,
     files: List[UploadFile] = File(...),
@@ -217,7 +558,6 @@ async def add_files_to_batch(
 ):
     """Add files to an existing batch."""
     try:
-        # Verify batch exists
         existing_files = db.query(ContentModel).filter(
             ContentModel.meta['batch_id'].astext == batch_id,
             ContentModel.created_by == current_user.id
@@ -254,63 +594,59 @@ async def add_files_to_batch(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/batch/{batch_id}/files/{file_id}", response_model=Dict[str, Any])
-async def remove_file_from_batch(
-    batch_id: str,
-    file_id: str,
-    db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user)
-):
-    """Remove a file from a batch."""
-    try:
-        # Verify file exists and belongs to batch
-        file = db.query(ContentModel).filter(
-            ContentModel.id == file_id,
-            ContentModel.meta['batch_id'].astext == batch_id,
-            ContentModel.created_by == current_user.id
-        ).first()
-        
-        if not file:
-            raise HTTPException(status_code=404, detail="File not found in batch")
-            
-        # Delete the file
-        crud_content.remove(db=db, id=file_id)
-        
-        # Get remaining files in batch
-        remaining_files = db.query(ContentModel).filter(
-            ContentModel.meta['batch_id'].astext == batch_id,
-            ContentModel.created_by == current_user.id
-        ).all()
-        
-        return {
-            "batch_id": batch_id,
-            "remaining_files": [Content.from_orm(f) for f in remaining_files]
+@router.post("/generate-contextual", 
+    response_model=Dict[str, Any],
+    summary="Generate Contextual Content",
+    description="""
+    Generate content using AI based on course context:
+    - Uses all course-related content (transcripts, files, text)
+    - Supports multiple content types
+    - Can be customized with extra parameters
+    
+    Example Input:
+    ```json
+    {
+        "course_id": "550e8400-e29b-41d4-a716-446655440000",
+        "content_type": "quiz",
+        "provider": "openai",
+        "extra_parameters": {
+            "difficulty": "intermediate",
+            "num_questions": 10
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/generate-contextual", response_model=ContentGeneratorResponse)
+    }
+    ```
+    
+    Example Output:
+    ```json
+    {
+        "content": {
+            "questions": [
+                {
+                    "question": "Based on the course content, what is...",
+                    "options": [...],
+                    "correct_answer": 0,
+                    "explanation": "..."
+                }
+            ]
+        }
+    }
+    ```
+    """
+)
 async def generate_contextual_content(
-    course_id: Optional[str] = Body(None),
-    learning_path_id: Optional[str] = Body(None),
-    content_type: str = Body(...),
-    provider: str = Body("openai"),
-    extra_parameters: Optional[Dict[str, Any]] = Body(default_factory=dict),
+    request: ContentContextualGenerateRequest,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    """Generate content (quiz, notes, flashcards, etc.) using all course-related context (transcripts, files, text, etc.)."""
-    if not course_id and not learning_path_id:
-        raise HTTPException(status_code=400, detail="Must provide course_id or learning_path_id.")
+    """Generate content using course context."""
+    if not request.course_id:
+        raise HTTPException(status_code=400, detail="Must provide course_id.")
 
-    # Aggregate all related content for the course or learning path
     query = db.query(ContentModel)
-    if course_id:
-        query = query.filter(ContentModel.course_id == course_id)
-    # Optionally, aggregate by learning_path_id if needed (not shown here)
+    if request.course_id:
+        query = query.filter(ContentModel.course_id == request.course_id)
     contents = query.all()
 
-    # Gather context: transcripts, text, files, etc.
     context_parts = []
     for c in contents:
         if c.content_type == ContentType.TEXT:
@@ -320,17 +656,18 @@ async def generate_contextual_content(
             if transcript:
                 context_parts.append(transcript)
         elif c.content_type == ContentType.FILE:
-            # Optionally decode and process files (e.g., PDFs)
-            pass  # Extend as needed
+            pass
+
     context = "\n\n".join(context_parts)
-
-    # Prepare parameters for the AI generator
     parameters = {"context": context}
-    parameters.update(extra_parameters or {})
+    parameters.update(request.extra_parameters or {})
 
-    # Call the AI generator
     try:
-        response = await content_generator.generate_content(content_type, parameters, provider)
-        return ContentGeneratorResponse(content=response["content"])
+        result = await content_generator.generate_content(
+            request.content_type,
+            parameters,
+            request.provider
+        )
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

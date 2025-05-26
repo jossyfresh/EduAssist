@@ -13,3 +13,8 @@ yt-dlp>=2023.12.30
 openai>=1.0.0
 requests>=2.31.0
 google-generativeai>=0.3.0
+yt-dlp
+scrapetube
+youtube-transcript-api
+pandas
+pyngrok

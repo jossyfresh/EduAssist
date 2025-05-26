@@ -204,13 +204,12 @@
 ### Generate Content Using AI
 
 - **POST** `/content/generate`
-  - Generate content (quiz, summary, flashcard, etc.) using AI, with a custom prompt and parameters.
+  - Generate content (quiz, summary, flashcard, etc.) using AI, with automatic fallback from Gemini to OpenAI.
   - Request Body:
     ```json
     {
       "content_type": "quiz|summary|flashcard|youtube_suggestions",
-      "parameters": { "context": "string", ... },
-      "provider": "openai|gemini"
+      "parameters": { "context": "string", ... }
     }
     ```
   - Response:
@@ -219,6 +218,7 @@
       "content": "...generated content..."
     }
     ```
+  - Note: The system will automatically try Gemini first, and if it fails or isn't configured, it will fall back to OpenAI.
 
 ### Generate Context-Aware Content (Aggregates All Course Context)
 
@@ -230,7 +230,6 @@
       "course_id": "uuid (optional)",
       "learning_path_id": "uuid (optional)",
       "content_type": "quiz|summary|flashcard|notes|...",
-      "provider": "openai|gemini (default: openai)",
       "extra_parameters": { ... } // Optional, merged into AI prompt
     }
     ```
@@ -240,6 +239,7 @@
       "content": "...generated content..."
     }
     ```
+  - Note: The system will automatically try Gemini first, and if it fails or isn't configured, it will fall back to OpenAI.
 
 ---
 
@@ -455,6 +455,83 @@
       ]
     }
     ```
+
+### Get Learning Path Steps
+
+```http
+GET /api/v1/learning-paths/course/{course_id}/steps
+```
+
+Get all steps for a learning path by course ID.
+
+**Response:**
+
+```json
+[
+  {
+    "id": "string",
+    "title": "string",
+    "description": "string",
+    "order": 1
+  }
+]
+```
+
+### Get User Progress
+
+```http
+GET /api/v1/learning-paths/progress/{path_id}
+```
+
+Get user progress for a specific learning path.
+
+**Response:**
+
+```json
+[
+  {
+    "id": "string",
+    "user_id": "string",
+    "learning_path_id": "string",
+    "step_id": "string",
+    "completed": true,
+    "completed_at": "2024-03-21T12:00:00",
+    "created_at": "2024-03-21T12:00:00",
+    "updated_at": "2024-03-21T12:00:00"
+  }
+]
+```
+
+### Update Step Progress
+
+```http
+POST /api/v1/learning-paths/progress/{path_id}/step/{step_id}
+```
+
+Update progress for a specific step in a learning path.
+
+**Request Body:**
+
+```json
+{
+  "completed": true
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": "string",
+  "user_id": "string",
+  "learning_path_id": "string",
+  "step_id": "string",
+  "completed": true,
+  "completed_at": "2024-03-21T12:00:00",
+  "created_at": "2024-03-21T12:00:00",
+  "updated_at": "2024-03-21T12:00:00"
+}
+```
 
 ---
 
