@@ -456,6 +456,83 @@
     }
     ```
 
+### Get Learning Path Steps
+
+```http
+GET /api/v1/learning-paths/course/{course_id}/steps
+```
+
+Get all steps for a learning path by course ID.
+
+**Response:**
+
+```json
+[
+  {
+    "id": "string",
+    "title": "string",
+    "description": "string",
+    "order": 1
+  }
+]
+```
+
+### Get User Progress
+
+```http
+GET /api/v1/learning-paths/progress/{path_id}
+```
+
+Get user progress for a specific learning path.
+
+**Response:**
+
+```json
+[
+  {
+    "id": "string",
+    "user_id": "string",
+    "learning_path_id": "string",
+    "step_id": "string",
+    "completed": true,
+    "completed_at": "2024-03-21T12:00:00",
+    "created_at": "2024-03-21T12:00:00",
+    "updated_at": "2024-03-21T12:00:00"
+  }
+]
+```
+
+### Update Step Progress
+
+```http
+POST /api/v1/learning-paths/progress/{path_id}/step/{step_id}
+```
+
+Update progress for a specific step in a learning path.
+
+**Request Body:**
+
+```json
+{
+  "completed": true
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": "string",
+  "user_id": "string",
+  "learning_path_id": "string",
+  "step_id": "string",
+  "completed": true,
+  "completed_at": "2024-03-21T12:00:00",
+  "created_at": "2024-03-21T12:00:00",
+  "updated_at": "2024-03-21T12:00:00"
+}
+```
+
 ---
 
 **Note:**
