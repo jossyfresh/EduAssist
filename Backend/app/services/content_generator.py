@@ -364,17 +364,55 @@ class ContentGenerator:
             f"Each chapter should be a key step for a beginner, with estimatedDuration in hours, "
             f"keyConcepts as an array of main topics, and resources as an array of learning materials."
         )
-        response = self.openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        import json as _json
+
         try:
-            return _json.loads(response.choices[0].message.content)
-        except Exception:
+            # Try Gemini first
+            if self.gemini_model:
+                response = self.gemini_model.generate_content(prompt)
+                content = response.text
+                if content.startswith("```json"):
+                    content = content[7:]
+                if content.endswith("```"):
+                    content = content[:-3]
+                content = content.strip()
+                start = content.find("{")
+                end = content.rfind("}") + 1
+                if start >= 0 and end > start:
+                    content = content[start:end]
+                return json.loads(content)
+            
+            # Fall back to OpenAI if Gemini fails or isn't available
+            if self.openai_client:
+                response = self.openai_client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return json.loads(response.choices[0].message.content)
+            
+            # Default response if no AI provider is configured
             return {
                 "materialTitle": course_title,
                 "materialDescription": course_description,
                 "progress": 0,
-                "chapters": []
+                "chapters": [
+                    {
+                        "title": "Introduction",
+                        "description": "Get started with the basics",
+                        "estimatedDuration": "1 hour",
+                        "keyConcepts": ["Fundamentals"],
+                        "resources": [
+                            {
+                                "type": "text",
+                                "title": "Course Materials",
+                                "url": ""
+                            }
+                        ]
+                    }
+                ]
             }
+        except Exception as e:
+            logger.error(f"Error generating learning path outline: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error generating learning path outline: {str(e)}"
+            )
