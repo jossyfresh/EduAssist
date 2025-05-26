@@ -2,3 +2,5 @@
 .env
 .env.*
 !.env.example
+# Chrome Extension
+app/services/translate-chrome-extension/ 
