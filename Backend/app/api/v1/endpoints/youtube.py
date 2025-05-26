@@ -19,39 +19,51 @@ class VideoDownloadResponse(BaseModel):
     video_title: str
     video_id: str
 
+class VideoDownloadRequest(BaseModel):
+    url: str
+    resolution: str = "best"
+
 class TranscriptResponse(BaseModel):
     youtube_url: str
     video_id: str
     video_title: str
     transcript: str
 
+class TranscriptRequest(BaseModel):
+    url: str
+
 class ChannelVideosResponse(BaseModel):
     video_ids: List[str]
     video_urls: List[str]
     video_titles: List[str]
+
+class ChannelRequest(BaseModel):
+    channel_name: str
 
 class ThumbnailResponse(BaseModel):
     thumbnail_path: str
     video_id: str
     thumbnail_url: str
 
+class ThumbnailRequest(BaseModel):
+    url: str
+
 @router.post("/download", response_model=VideoDownloadResponse)
 async def download_youtube_video(
-    url: str = Form(...),
-    resolution: str = Form("best"),
+    request: VideoDownloadRequest,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
     """Download a YouTube video with specified resolution."""
-    if not is_valid_youtube_url(url):
+    if not is_valid_youtube_url(request.url):
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
     
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             result = download_video(
-                url=url,
+                url=request.url,
                 savedir=temp_dir,
-                resolution_dropdown=resolution
+                resolution_dropdown=request.resolution
             )
             
             return VideoDownloadResponse(
@@ -64,29 +76,29 @@ async def download_youtube_video(
 
 @router.post("/transcript", response_model=TranscriptResponse)
 async def get_video_transcript(
-    url: str = Form(...),
+    request: TranscriptRequest,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
     """Get transcript for a YouTube video."""
-    if not is_valid_youtube_url(url):
+    if not is_valid_youtube_url(request.url):
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
     
     try:
-        transcript_data = get_single_transcript(url)
+        transcript_data = get_single_transcript(request.url)
         return TranscriptResponse(**transcript_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/channel", response_model=ChannelVideosResponse)
 async def get_channel_videos_list(
-    channel_name: str = Form(...),
+    request: ChannelRequest,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
     """Get list of videos from a YouTube channel."""
     try:
-        video_ids, video_urls, video_titles = get_channel_videos(channel_name)
+        video_ids, video_urls, video_titles = get_channel_videos(request.channel_name)
         if not video_ids:
             raise HTTPException(status_code=404, detail="No videos found for this channel")
         
@@ -100,17 +112,17 @@ async def get_channel_videos_list(
 
 @router.post("/thumbnail", response_model=ThumbnailResponse)
 async def get_video_thumbnail(
-    url: str = Form(...),
+    request: ThumbnailRequest,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
     """Get thumbnail for a YouTube video."""
-    if not is_valid_youtube_url(url):
+    if not is_valid_youtube_url(request.url):
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
     
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            thumbnail_path, metadata = get_thumbnail(url, temp_dir)
+            thumbnail_path, metadata = get_thumbnail(request.url, temp_dir)
             return ThumbnailResponse(
                 thumbnail_path=thumbnail_path,
                 video_id=metadata["video_id"],
