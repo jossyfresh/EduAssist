@@ -204,13 +204,12 @@
 ### Generate Content Using AI
 
 - **POST** `/content/generate`
-  - Generate content (quiz, summary, flashcard, etc.) using AI, with a custom prompt and parameters.
+  - Generate content (quiz, summary, flashcard, etc.) using AI, with automatic fallback from Gemini to OpenAI.
   - Request Body:
     ```json
     {
       "content_type": "quiz|summary|flashcard|youtube_suggestions",
-      "parameters": { "context": "string", ... },
-      "provider": "openai|gemini"
+      "parameters": { "context": "string", ... }
     }
     ```
   - Response:
@@ -219,6 +218,7 @@
       "content": "...generated content..."
     }
     ```
+  - Note: The system will automatically try Gemini first, and if it fails or isn't configured, it will fall back to OpenAI.
 
 ### Generate Context-Aware Content (Aggregates All Course Context)
 
@@ -230,7 +230,6 @@
       "course_id": "uuid (optional)",
       "learning_path_id": "uuid (optional)",
       "content_type": "quiz|summary|flashcard|notes|...",
-      "provider": "openai|gemini (default: openai)",
       "extra_parameters": { ... } // Optional, merged into AI prompt
     }
     ```
@@ -240,6 +239,7 @@
       "content": "...generated content..."
     }
     ```
+  - Note: The system will automatically try Gemini first, and if it fails or isn't configured, it will fall back to OpenAI.
 
 ---
 

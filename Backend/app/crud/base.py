@@ -27,6 +27,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     def create(self, db: Session, *, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = obj_in.dict()
+        # Remove prompt field if it exists
+        obj_in_data.pop('prompt', None)
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
         db.commit()

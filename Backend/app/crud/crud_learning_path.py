@@ -16,9 +16,9 @@ from app.schemas.learning_path import (
 )
 from app.schemas.content import Content, ContentCreate, ContentUpdate
 from app.schemas.progress import (
-    UserProgressCreate,
-    UserProgressUpdate,
-    UserProgressInDB
+    ProgressCreate,
+    ProgressUpdate,
+    Progress
 )
 
 class CRUDLearningPath(CRUDBase[LearningPath, LearningPathCreate, LearningPathUpdate]):
@@ -123,8 +123,8 @@ class CRUDLearningPathStep(CRUDBase[LearningPathStep, LearningPathStepCreate, Le
             .all()
         )
 
-class CRUDUserProgress(CRUDBase[UserProgressInDB, UserProgressCreate, UserProgressUpdate]):
-    def get_by_learning_path(self, db: Session, user_id: int, learning_path_id: int) -> List[UserProgressInDB]:
+class CRUDProgress(CRUDBase[Progress, ProgressCreate, ProgressUpdate]):
+    def get_by_learning_path(self, db: Session, user_id: str, learning_path_id: str) -> List[Progress]:
         """Get all progress entries for a user in a learning path."""
         return (
             db.query(self.model)
@@ -132,7 +132,7 @@ class CRUDUserProgress(CRUDBase[UserProgressInDB, UserProgressCreate, UserProgre
             .all()
         )
 
-    def get_by_step(self, db: Session, user_id: int, step_id: int) -> Optional[UserProgressInDB]:
+    def get_by_step(self, db: Session, user_id: str, step_id: str) -> Optional[Progress]:
         """Get progress for a specific step."""
         return (
             db.query(self.model)
@@ -143,4 +143,4 @@ class CRUDUserProgress(CRUDBase[UserProgressInDB, UserProgressCreate, UserProgre
 # Create instances of the CRUD classes
 crud_learning_path = CRUDLearningPath(LearningPath)
 crud_learning_path_step = CRUDLearningPathStep(LearningPathStep)
-crud_user_progress = CRUDUserProgress(UserProgressInDB)
+crud_progress = CRUDProgress(Progress)

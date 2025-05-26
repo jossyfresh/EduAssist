@@ -40,7 +40,6 @@ class Content(BaseModel):
 class GenerateContentRequest(BaseModel):
     content_type: str
     parameters: Dict[str, Any]
-    provider: str = "openai"
 
 class VideoContent(ContentBase):
     video_url: str

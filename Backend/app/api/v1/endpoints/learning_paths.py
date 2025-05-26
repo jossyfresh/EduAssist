@@ -14,7 +14,7 @@ from app.schemas.learning_path import (
     LearningPathInDB,
     LearningPathStepCreate
 )
-from app.schemas.progress import UserProgressInDB
+from app.schemas.progress import Progress
 from app.api import deps
 from app.models.user import User
 from app.services.content_generator import ContentGenerator
@@ -177,12 +177,12 @@ async def get_learning_path_by_course(
     print(f"[DEBUG] Found learning path: ID={path.id}, Title={path.title}")
     return path
 
-@router.get("/progress/{path_id}", response_model=List[UserProgressInDB])
+@router.get("/progress/{path_id}", response_model=List[Progress])
 async def get_user_progress(
     path_id: str,
     current_user: User = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
-) -> List[UserProgressInDB]:
+) -> List[Progress]:
     """Get user progress for a specific learning path."""
     try:
         # Get all progress entries for this user and path
@@ -194,14 +194,14 @@ async def get_user_progress(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/progress/{path_id}/step/{step_id}", response_model=UserProgressInDB)
+@router.post("/progress/{path_id}/step/{step_id}", response_model=Progress)
 async def update_step_progress(
     path_id: str,
     step_id: str,
     completed: bool,
     current_user: User = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db)
-) -> UserProgressInDB:
+) -> Progress:
     """Update progress for a specific step in a learning path."""
     try:
         # Check if learning path and step exist

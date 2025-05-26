@@ -27,19 +27,29 @@ class ContentGenerator:
             
         if settings.GEMINI_API_KEY:
             genai.configure(api_key=settings.GEMINI_API_KEY)
-            self.gemini_model = GenerativeModel('gemini-pro')
+            self.gemini_model = GenerativeModel('gemini-1.5-flash')
 
     async def generate_content(self, content_type: str, parameters: Dict[str, Any], provider: str = "openai") -> Dict[str, Any]:
-        if provider == "openai":
-            if not self.openai_client:
-                return {"content": "OpenAI API key not configured"}
+        # Try Gemini first if it's configured
+        if self.gemini_model:
+            try:
+                return await self._generate_with_gemini(content_type, parameters)
+            except Exception as e:
+                # If Gemini fails, fall back to OpenAI if configured
+                if self.openai_client:
+                    try:
+                        return await self._generate_with_openai(content_type, parameters)
+                    except Exception as openai_error:
+                        return {"content": f"Error generating content: {str(openai_error)}"}
+                else:
+                    return {"content": f"Error generating content with Gemini: {str(e)}"}
+        
+        # If Gemini is not configured, use OpenAI if available
+        elif self.openai_client:
             return await self._generate_with_openai(content_type, parameters)
-        elif provider == "gemini":
-            if not self.gemini_model:
-                return {"content": "Gemini API key not configured"}
-            return await self._generate_with_gemini(content_type, parameters)
-        else:
-            raise ValueError(f"Unsupported provider: {provider}")
+        
+        # If neither is configured
+        return {"content": "No AI provider configured"}
 
     async def _generate_with_openai(self, content_type: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
         if content_type == "quiz":
@@ -264,3 +274,90 @@ class ContentGenerator:
                 "progress": 0,
                 "chapters": []
             }
+
+    async def generate_course_content(self, prompt: str) -> Dict[str, Any]:
+        """Generate course content using AI."""
+        ai_prompt = f"""Given the following course idea or topic, generate a comprehensive course structure. 
+        Respond with a valid JSON object in this exact format (no extra text or formatting):
+        {{
+            "title": "A catchy, engaging course title",
+            "sub_title": "A concise subtitle that highlights the key focus",
+            "description": "A detailed description that includes what students will learn, key topics covered, prerequisites (if any), expected outcomes, and who this course is for"
+        }}
+
+        Prompt: {prompt}"""
+        
+        # Try Gemini first
+        if self.gemini_model:
+            try:
+                print(f"[DEBUG] Sending prompt to Gemini: {ai_prompt}")
+                response = self.gemini_model.generate_content(ai_prompt)
+                print(f"[DEBUG] Gemini response: {response.text}")
+                if not response.text:
+                    raise ValueError("Empty response from Gemini")
+                # Clean up the response by removing markdown code block markers and extracting just the JSON
+                content = response.text
+                if content.startswith("```json"):
+                    content = content[7:]
+                if content.endswith("```"):
+                    content = content[:-3]
+                content = content.strip()
+                # Find the first { and last } to extract just the JSON object
+                start = content.find("{")
+                end = content.rfind("}") + 1
+                if start >= 0 and end > start:
+                    content = content[start:end]
+                return {"content": content}
+            except Exception as e:
+                print(f"Gemini failed: {e}")
+                # Fall back to OpenAI
+                if self.openai_client:
+                    try:
+                        print(f"[DEBUG] Falling back to OpenAI with prompt: {ai_prompt}")
+                        response = self.openai_client.chat.completions.create(
+                            model="gpt-3.5-turbo",
+                            messages=[{"role": "user", "content": ai_prompt}]
+                        )
+                        print(f"[DEBUG] OpenAI response: {response.choices[0].message.content}")
+                        if not response.choices[0].message.content:
+                            raise ValueError("Empty response from OpenAI")
+                        return {"content": response.choices[0].message.content}
+                    except Exception as e:
+                        print(f"OpenAI failed: {e}")
+                        return {"content": json.dumps({
+                            "title": "Untitled Course",
+                            "sub_title": "A course about " + prompt,
+                            "description": f"This course will help you learn about {prompt}. Join us to explore this topic in depth."
+                        })}
+                else:
+                    return {"content": json.dumps({
+                        "title": "Untitled Course",
+                        "sub_title": "A course about " + prompt,
+                        "description": f"This course will help you learn about {prompt}. Join us to explore this topic in depth."
+                    })}
+        else:
+            # Use OpenAI if Gemini not available
+            if self.openai_client:
+                try:
+                    print(f"[DEBUG] Using OpenAI with prompt: {ai_prompt}")
+                    response = self.openai_client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "user", "content": ai_prompt}]
+                    )
+                    print(f"[DEBUG] OpenAI response: {response.choices[0].message.content}")
+                    if not response.choices[0].message.content:
+                        raise ValueError("Empty response from OpenAI")
+                    return {"content": response.choices[0].message.content}
+                except Exception as e:
+                    print(f"OpenAI failed: {e}")
+                    return {"content": json.dumps({
+                        "title": "Untitled Course",
+                        "sub_title": "A course about " + prompt,
+                        "description": f"This course will help you learn about {prompt}. Join us to explore this topic in depth."
+                    })}
+            else:
+                return {"content": json.dumps({
+                    "title": "Untitled Course",
+                    "sub_title": "A course about " + prompt,
+                    "description": f"This course will help you learn about {prompt}. Join us to explore this topic in depth."
+                })}

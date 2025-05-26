@@ -122,18 +122,13 @@ async def generate_content(
 ):
     """Generate content using AI."""
     try:
-        # Validate provider
-        valid_providers = {"openai", "gemini"}
-        if request.provider not in valid_providers:
-            raise HTTPException(status_code=400, detail=f"Unsupported provider: {request.provider}")
         # Validate content_type
         valid_content_types = {"quiz", "summary", "flashcard", "youtube_suggestions"}
         if request.content_type not in valid_content_types:
             raise HTTPException(status_code=400, detail=f"Unsupported content type: {request.content_type}")
         response = await content_generator.generate_content(
             request.content_type,
-            request.parameters,
-            request.provider
+            request.parameters
         )
         return ContentGeneratorResponse(content=response["content"])
     except HTTPException:
