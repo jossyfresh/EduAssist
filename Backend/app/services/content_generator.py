@@ -348,3 +348,71 @@ class ContentGenerator:
                 status_code=500,
                 detail=f"Invalid response format from AI: {str(e)}"
             )
+
+    def generate_learning_path_outline(self, course_title: str, course_description: str) -> dict:
+        """
+        Generate a learning path outline with detailed structure for each chapter.
+        Returns a dict containing materialTitle, materialDescription, progress, and chapters array.
+        Each chapter contains title, description, estimatedDuration, keyConcepts, and resources.
+        """
+        prompt = (
+            f"Given the course title: '{course_title}' and description: '{course_description}', "
+            f"generate a JSON object with the following structure: "
+            f"{{'materialTitle': <string>, 'materialDescription': <string>, 'progress': 0, 'chapters': ["
+            f"{{'title': <string>, 'description': <string>, 'estimatedDuration': <string>, "
+            f"'keyConcepts': [<string>], 'resources': [{{'type': <string>, 'title': <string>, 'url': <string>}}]}}, ...]}}. "
+            f"Each chapter should be a key step for a beginner, with estimatedDuration in hours, "
+            f"keyConcepts as an array of main topics, and resources as an array of learning materials."
+        )
+
+        try:
+            # Try Gemini first
+            if self.gemini_model:
+                response = self.gemini_model.generate_content(prompt)
+                content = response.text
+                if content.startswith("```json"):
+                    content = content[7:]
+                if content.endswith("```"):
+                    content = content[:-3]
+                content = content.strip()
+                start = content.find("{")
+                end = content.rfind("}") + 1
+                if start >= 0 and end > start:
+                    content = content[start:end]
+                return json.loads(content)
+            
+            # Fall back to OpenAI if Gemini fails or isn't available
+            if self.openai_client:
+                response = self.openai_client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return json.loads(response.choices[0].message.content)
+            
+            # Default response if no AI provider is configured
+            return {
+                "materialTitle": course_title,
+                "materialDescription": course_description,
+                "progress": 0,
+                "chapters": [
+                    {
+                        "title": "Introduction",
+                        "description": "Get started with the basics",
+                        "estimatedDuration": "1 hour",
+                        "keyConcepts": ["Fundamentals"],
+                        "resources": [
+                            {
+                                "type": "text",
+                                "title": "Course Materials",
+                                "url": ""
+                            }
+                        ]
+                    }
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Error generating learning path outline: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error generating learning path outline: {str(e)}"
+            )
