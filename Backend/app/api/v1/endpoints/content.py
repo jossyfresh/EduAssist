@@ -57,20 +57,6 @@ async def create_video_content(
     content = crud_content.create_video(db=db, obj_in=content_in, user_id=current_user.id)
     return Content.from_orm(content)
 
-@router.get("/youtube-metadata")
-async def get_youtube_metadata(video_url: str):
-    # Dummy implementation for test
-    return {
-        "title": "Test Video", 
-        "video_url": video_url, 
-        "duration": 123,
-        "description": "Test video description"
-    }
-
-@router.get("/combined")
-async def get_combined_content():
-    # Dummy implementation for test
-    return {"items": [{"id": "1", "title": "Combined Content"}]}
 
 @router.get("/{content_id}", response_model=Content)
 async def get_content(
