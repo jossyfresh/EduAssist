@@ -348,3 +348,33 @@ class ContentGenerator:
                 status_code=500,
                 detail=f"Invalid response format from AI: {str(e)}"
             )
+
+    def generate_learning_path_outline(self, course_title: str, course_description: str) -> dict:
+        """
+        Generate a learning path outline with detailed structure for each chapter.
+        Returns a dict containing materialTitle, materialDescription, progress, and chapters array.
+        Each chapter contains title, description, estimatedDuration, keyConcepts, and resources.
+        """
+        prompt = (
+            f"Given the course title: '{course_title}' and description: '{course_description}', "
+            f"generate a JSON object with the following structure: "
+            f"{{'materialTitle': <string>, 'materialDescription': <string>, 'progress': 0, 'chapters': ["
+            f"{{'title': <string>, 'description': <string>, 'estimatedDuration': <string>, "
+            f"'keyConcepts': [<string>], 'resources': [{{'type': <string>, 'title': <string>, 'url': <string>}}]}}, ...]}}. "
+            f"Each chapter should be a key step for a beginner, with estimatedDuration in hours, "
+            f"keyConcepts as an array of main topics, and resources as an array of learning materials."
+        )
+        response = self.openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        import json as _json
+        try:
+            return _json.loads(response.choices[0].message.content)
+        except Exception:
+            return {
+                "materialTitle": course_title,
+                "materialDescription": course_description,
+                "progress": 0,
+                "chapters": []
+            }
