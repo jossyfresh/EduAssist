@@ -1,27 +1,25 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, UUID4
-from app.models.enums import ProgressStatus
+from pydantic import BaseModel
 
 class UserProgressBase(BaseModel):
-    status: ProgressStatus
-    started_at: Optional[datetime] = None
+    completed: bool = False
     completed_at: Optional[datetime] = None
 
 class UserProgressCreate(UserProgressBase):
-    learning_path_id: UUID4
-    step_id: UUID4
+    learning_path_id: str
+    step_id: str
 
 class UserProgressUpdate(UserProgressBase):
-    status: Optional[ProgressStatus] = None
+    pass
 
 class UserProgressInDB(UserProgressBase):
-    id: UUID4
-    user_id: UUID4
-    learning_path_id: UUID4
-    step_id: UUID4
+    id: str
+    user_id: str
+    learning_path_id: str
+    step_id: str
     created_at: datetime
     updated_at: datetime
 
     class Config:
-        from_attributes = True 
+        orm_mode = True 
