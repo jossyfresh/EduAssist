@@ -5,3 +5,4 @@
 # Chrome Extension
 app/services/translate-chrome-extension/ 
 .venv
+eduassist.db
