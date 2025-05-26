@@ -23,6 +23,8 @@ class User(Base):
     created_exams = relationship("Exam", back_populates="creator")
     quiz_attempts = relationship("QuizAttempt", back_populates="user")
     exam_attempts = relationship("ExamAttempt", back_populates="user")
+    youtube_contents = relationship("YouTubeContent", back_populates="user")
+    youtube_chat_messages = relationship("YouTubeChatMessage", back_populates="user")
 
     def __repr__(self):
         return f"<User {self.email}>" 
