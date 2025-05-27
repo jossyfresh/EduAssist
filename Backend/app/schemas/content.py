@@ -97,3 +97,19 @@ class TextContent(ContentBase):
                 "content": "Quantum computing is a type of computing that uses quantum bits..."
             }
         }
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatHistory(BaseModel):
+    messages: List[ChatMessage]
+
+class ChatRequest(BaseModel):
+    course_id: str
+    prompt: str
+    history: Optional[List[ChatMessage]] = None
+
+class ChatResponse(BaseModel):
+    response: str
+    history: List[ChatMessage]

@@ -2,7 +2,7 @@ from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Body, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.api import deps
-from app.schemas.content import Content, ContentCreate, ContentUpdate, ContentGeneratorResponse, GenerateContentRequest, ContentResponse, ContentListResponse, ContentGenerateRequest, ContentBatchResponse, ContentBatchCreate, ContentBatchUpdate, ContentContextualGenerateRequest
+from app.schemas.content import Content, ContentCreate, ContentUpdate, ContentGeneratorResponse, GenerateContentRequest, ContentResponse, ContentListResponse, ContentGenerateRequest, ContentBatchResponse, ContentBatchCreate, ContentBatchUpdate, ContentContextualGenerateRequest, ChatResponse, ChatRequest
 from app.crud.crud_content import crud_content
 from app.services.content_generator import ContentGenerator
 from app.services.content_service import ContentService
@@ -853,3 +853,69 @@ async def generate_from_outline(
                 "type": type(e).__name__
             }
         )
+
+@router.post("/chat", 
+    response_model=ChatResponse,
+    summary="Chat with Course AI",
+    description="""
+    Chat with an AI tutor about course content. The AI will use the course content as context for its responses.
+    
+    Example Input:
+    ```json
+    {
+        "course_id": "550e8400-e29b-41d4-a716-446655440000",
+        "prompt": "Can you explain the concept of quantum computing?",
+        "history": [
+            {
+                "role": "user",
+                "content": "What is quantum computing?"
+            },
+            {
+                "role": "assistant",
+                "content": "Quantum computing is a type of computing that uses quantum bits..."
+            }
+        ]
+    }
+    ```
+    
+    Example Output:
+    ```json
+    {
+        "response": "Quantum computing uses quantum bits (qubits) that can exist in multiple states simultaneously...",
+        "history": [
+            {
+                "role": "user",
+                "content": "What is quantum computing?"
+            },
+            {
+                "role": "assistant",
+                "content": "Quantum computing is a type of computing that uses quantum bits..."
+            },
+            {
+                "role": "user",
+                "content": "Can you explain the concept of quantum computing?"
+            },
+            {
+                "role": "assistant",
+                "content": "Quantum computing uses quantum bits (qubits) that can exist in multiple states simultaneously..."
+            }
+        ]
+    }
+    ```
+    """
+)
+async def chat_with_course(
+    request: ChatRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """Chat with an AI tutor about course content."""
+    try:
+        result = await content_generator.generate_chat_response(
+            course_id=request.course_id,
+            prompt=request.prompt,
+            history=request.history
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

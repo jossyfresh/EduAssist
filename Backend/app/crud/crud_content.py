@@ -119,4 +119,8 @@ class ContentCRUD(CRUDBase[ContentModel, ContentCreate, ContentUpdate]):
         db.refresh(db_obj)
         return db_obj
 
+    def get_by_course(self, db: Session, course_id: str) -> List[ContentModel]:
+        """Get all content associated with a course."""
+        return db.query(ContentModel).filter(ContentModel.course_id == course_id).all()
+
 crud_content = ContentCRUD(ContentModel) 
