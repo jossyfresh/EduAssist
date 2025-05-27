@@ -26,6 +26,7 @@ origins = [
     "http://localhost:8000",  # FastAPI development server
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8000",
+    "https://eduassist.netlify.app",
 ]
 
 # Add production origins if they exist in settings
@@ -34,7 +35,7 @@ if settings.BACKEND_CORS_ORIGINS:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
