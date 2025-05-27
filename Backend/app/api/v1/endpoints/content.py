@@ -2,7 +2,7 @@ from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Body, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.api import deps
-from app.schemas.content import Content, ContentCreate, ContentUpdate, ContentGeneratorResponse, GenerateContentRequest, ContentResponse, ContentListResponse, ContentGenerateRequest, ContentBatchResponse, ContentBatchCreate, ContentBatchUpdate, ContentContextualGenerateRequest
+from app.schemas.content import Content, ContentCreate, ContentUpdate, ContentGeneratorResponse, GenerateContentRequest, ContentResponse, ContentListResponse, ContentGenerateRequest, ContentBatchResponse, ContentBatchCreate, ContentBatchUpdate, ContentContextualGenerateRequest, ChatResponse, ChatRequest
 from app.crud.crud_content import crud_content
 from app.services.content_generator import ContentGenerator
 from app.services.content_service import ContentService
@@ -14,10 +14,91 @@ from uuid import uuid4
 import base64
 import json
 from datetime import datetime
+from pydantic import BaseModel
+import re
+import asyncio
 
 router = APIRouter()
 content_generator = ContentGenerator()
 content_service = ContentService()
+
+class OutlineContentRequest(BaseModel):
+    outline: str
+    course_id: Optional[str] = None
+
+def is_valid_json(text: str) -> bool:
+    """Check if a string is valid JSON."""
+    try:
+        json.loads(text)
+        return True
+    except json.JSONDecodeError:
+        return False
+
+def clean_json_response(response: str) -> str:
+    """Clean and extract JSON from response."""
+    # Remove markdown code blocks
+    cleaned = response.strip()
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[7:]
+    if cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    
+    cleaned = cleaned.strip()
+    
+    # Try to extract JSON using regex
+    json_match = re.search(r'\{[\s\S]*\}', cleaned)
+    if json_match:
+        return json_match.group()
+    return cleaned
+
+async def get_valid_json_response(content_generator, prompt: str, max_retries: int = 3) -> Dict:
+    """Get valid JSON response with retries."""
+    for attempt in range(max_retries):
+        try:
+            response = await content_generator._generate_with_gemini(prompt)
+            print(f"Attempt {attempt + 1} - Raw Response:", response)
+            
+            cleaned_response = clean_json_response(response)
+            print(f"Attempt {attempt + 1} - Cleaned Response:", cleaned_response)
+            
+            if is_valid_json(cleaned_response):
+                return json.loads(cleaned_response)
+            
+            print(f"Attempt {attempt + 1} - Invalid JSON, retrying...")
+            
+            # Modify prompt to be more strict about JSON
+            prompt = f"""IMPORTANT: Your previous response was not valid JSON. Please try again.
+            You must return ONLY a valid JSON object with no additional text, markdown, or formatting.
+            The response must be parseable by json.loads().
+            
+            {prompt}
+            
+            Remember:
+            1. Return ONLY the JSON object
+            2. No markdown formatting
+            3. No additional text before or after
+            4. No code blocks
+            5. Valid JSON syntax with proper quotes and commas
+            """
+            
+            # Add delay between retries
+            if attempt < max_retries - 1:
+                await asyncio.sleep(1)
+                
+        except Exception as e:
+            print(f"Attempt {attempt + 1} - Error:", str(e))
+            if attempt == max_retries - 1:
+                raise
+    
+    raise HTTPException(
+        status_code=500,
+        detail={
+            "error": "Failed to get valid JSON after multiple attempts",
+            "max_retries": max_retries
+        }
+    )
 
 @router.post("/text", 
     response_model=ContentResponse,
@@ -667,6 +748,173 @@ async def generate_contextual_content(
             request.content_type,
             parameters,
             request.provider
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generate-from-outline", 
+    response_model=Dict[str, Any],
+    summary="Generate Comprehensive Content from Outline",
+    description="""
+    Generate comprehensive educational content from an outline using AI.
+    The content will be structured as a list of chapters with detailed content.
+    
+    Example Input:
+    ```json
+    {
+        "outline": "Chapter 1: Introduction to Python\n- What is Python?\n- Why learn Python?\n- Setting up Python\n\nChapter 2: Basic Syntax\n- Variables and Data Types\n- Operators\n- Control Flow",
+        "course_id": "optional-course-id",
+        "provider": "gemini"
+    }
+    ```
+    
+    Example Output:
+    ```json
+    {
+        "chapters": [
+            {
+                "title": "Introduction to Python",
+                "sections": [
+                    {
+                        "title": "What is Python?",
+                        "content": "Python is a high-level, interpreted programming language...",
+                        "key_points": ["Easy to learn", "Versatile", "Large community"],
+                        "examples": ["print('Hello, World!')", "x = 5"]
+                    },
+                    {
+                        "title": "Why learn Python?",
+                        "content": "Python has become one of the most popular programming languages...",
+                        "key_points": ["High demand", "Easy syntax", "Rich ecosystem"],
+                        "examples": ["Data science", "Web development", "AI/ML"]
+                    }
+                ]
+            }
+        ]
+    }
+    ```
+    """
+)
+async def generate_from_outline(
+    request: OutlineContentRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+) -> Any:
+    """Generate comprehensive content from an outline using AI."""
+    try:
+        # Prepare the prompt for Gemini
+        prompt = f"""Generate comprehensive educational content based on the following outline. 
+        The content should be at least three pages long and include detailed explanations, examples, and key points.
+        IMPORTANT: Your response must be a valid JSON object with no extra text before or after.
+        Format the response as a JSON object with the following structure:
+        {{
+            "chapters": [
+                {{
+                    "title": "Chapter Title",
+                    "sections": [
+                        {{
+                            "title": "Section Title",
+                            "content": "Detailed content with explanations and examples",
+                            "key_points": ["Key point 1", "Key point 2", ...],
+                            "examples": ["Example 1", "Example 2", ...]
+                        }}
+                    ]
+                }}
+            ]
+        }}
+
+        Outline:
+        {request.outline}
+
+        Requirements:
+        1. Each section should have detailed explanations
+        2. Include relevant examples for each concept
+        3. List key points for easy reference
+        4. Use clear and concise language
+        5. Ensure the content is comprehensive and educational
+        6. Maintain a logical flow between sections
+        7. Include practical applications where relevant
+        8. IMPORTANT: Return ONLY the JSON object, no additional text or formatting
+        9. Ensure all JSON syntax is valid (proper quotes, commas, brackets)
+        10. No markdown formatting or code blocks
+        """
+
+        # Get valid JSON response with retries
+        content = await get_valid_json_response(content_generator, prompt)
+        return content
+
+    except Exception as e:
+        print(f"General Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Error generating content",
+                "message": str(e),
+                "type": type(e).__name__
+            }
+        )
+
+@router.post("/chat", 
+    response_model=ChatResponse,
+    summary="Chat with Course AI",
+    description="""
+    Chat with an AI tutor about course content. The AI will use the course content as context for its responses.
+    
+    Example Input:
+    ```json
+    {
+        "course_id": "550e8400-e29b-41d4-a716-446655440000",
+        "prompt": "Can you explain the concept of quantum computing?",
+        "history": [
+            {
+                "role": "user",
+                "content": "What is quantum computing?"
+            },
+            {
+                "role": "assistant",
+                "content": "Quantum computing is a type of computing that uses quantum bits..."
+            }
+        ]
+    }
+    ```
+    
+    Example Output:
+    ```json
+    {
+        "response": "Quantum computing uses quantum bits (qubits) that can exist in multiple states simultaneously...",
+        "history": [
+            {
+                "role": "user",
+                "content": "What is quantum computing?"
+            },
+            {
+                "role": "assistant",
+                "content": "Quantum computing is a type of computing that uses quantum bits..."
+            },
+            {
+                "role": "user",
+                "content": "Can you explain the concept of quantum computing?"
+            },
+            {
+                "role": "assistant",
+                "content": "Quantum computing uses quantum bits (qubits) that can exist in multiple states simultaneously..."
+            }
+        ]
+    }
+    ```
+    """
+)
+async def chat_with_course(
+    request: ChatRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """Chat with an AI tutor about course content."""
+    try:
+        result = await content_generator.generate_chat_response(
+            course_id=request.course_id,
+            prompt=request.prompt,
+            history=request.history
         )
         return result
     except Exception as e:

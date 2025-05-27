@@ -21,12 +21,24 @@ app = FastAPI(
 )
 
 # Set up CORS
+origins = [
+    "http://localhost:3000",  # Next.js development server
+    "http://localhost:8000",  # FastAPI development server
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+]
+
+# Add production origins if they exist in settings
+if settings.BACKEND_CORS_ORIGINS:
+    origins.extend(settings.BACKEND_CORS_ORIGINS)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include API router

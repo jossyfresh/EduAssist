@@ -9,6 +9,9 @@ from google.generativeai import GenerativeModel
 import google.generativeai as genai
 from fastapi import HTTPException
 import logging
+from app.crud.crud_content import crud_content
+from app.db.session import SessionLocal
+from app.models.enums import ContentType
 
 logger = logging.getLogger(__name__)
 
@@ -415,4 +418,124 @@ class ContentGenerator:
             raise HTTPException(
                 status_code=500,
                 detail=f"Error generating learning path outline: {str(e)}"
+            )
+
+    async def generate_chat_response(self, course_id: str, prompt: str, history: Optional[List[Dict[str, str]]] = None, provider: str = "openai") -> Dict[str, Any]:
+        """Generate a chat response based on course content and chat history."""
+        try:
+            # Get course content for context
+            course_content = await self._get_course_content(course_id)
+            if not course_content:
+                raise HTTPException(status_code=404, detail="Course content not found")
+
+            # Prepare messages for chat
+            messages = []
+            
+            # Add system message with course context
+            system_message = {
+                "role": "system",
+                "content": f"You are an AI tutor for this course. Use the following course content as context for your responses:\n\n{course_content}"
+            }
+            messages.append(system_message)
+
+            # Add chat history if provided
+            if history:
+                messages.extend(history)
+
+            # Add user's current prompt
+            messages.append({"role": "user", "content": prompt})
+
+            # Generate response using selected provider
+            if provider == "gemini" and self.gemini_model:
+                try:
+                    response = await self._generate_chat_with_gemini(messages)
+                    return {"response": response, "history": messages + [{"role": "assistant", "content": response}]}
+                except Exception as e:
+                    logger.warning(f"Gemini chat generation failed, falling back to OpenAI: {str(e)}")
+
+            # Fall back to OpenAI
+            if self.openai_client:
+                response = await self._generate_chat_with_openai(messages)
+                return {"response": response, "history": messages + [{"role": "assistant", "content": response}]}
+
+            raise HTTPException(status_code=500, detail="No AI provider configured")
+
+        except Exception as e:
+            logger.error(f"Chat generation error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error generating chat response: {str(e)}")
+
+    async def _get_course_content(self, course_id: str) -> str:
+        """Get all content associated with a course."""
+        db = SessionLocal()
+        try:
+            # Get all content for the course
+            contents = crud_content.get_by_course(db=db, course_id=course_id)
+            
+            if not contents:
+                # If no content found, try to get course metadata
+                from app.crud.crud_course import crud_course
+                course = crud_course.get(db=db, id=course_id)
+                if course:
+                    return f"Course Title: {course.title}\nSub Title: {course.sub_title}\nDescription: {course.description}"
+                return "No course content or metadata found."
+            
+            # Combine all content into a single string
+            content_parts = []
+            for content in contents:
+                if content.content_type == ContentType.TEXT:
+                    content_parts.append(f"Title: {content.title}\nContent: {content.content}")
+                elif content.content_type == ContentType.VIDEO:
+                    transcript = content.meta.get("transcript") if content.meta else None
+                    if transcript:
+                        content_parts.append(f"Title: {content.title}\nTranscript: {transcript}")
+                elif content.content_type == ContentType.FILE:
+                    # Skip files as they might not be text-based
+                    continue
+
+            return "\n\n".join(content_parts)
+        finally:
+            db.close()
+
+    async def _generate_chat_with_openai(self, messages: List[Dict[str, str]]) -> str:
+        """Generate chat response using OpenAI."""
+        if not self.openai_client:
+            raise HTTPException(
+                status_code=500,
+                detail="OpenAI client not initialized"
+            )
+
+        try:
+            response = self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1000
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"OpenAI chat generation error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error generating chat response with OpenAI: {str(e)}"
+            )
+
+    async def _generate_chat_with_gemini(self, messages: List[Dict[str, str]]) -> str:
+        """Generate chat response using Gemini."""
+        try:
+            # Convert messages to Gemini format
+            chat = self.gemini_model.start_chat(history=[])
+            for msg in messages:
+                if msg["role"] == "user":
+                    chat.send_message(msg["content"])
+                elif msg["role"] == "assistant":
+                    # Add assistant's response to history
+                    pass
+
+            response = chat.send_message(messages[-1]["content"])
+            return response.text
+        except Exception as e:
+            logger.error(f"Gemini chat generation error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error generating chat response with Gemini: {str(e)}"
             )
